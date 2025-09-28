@@ -1,42 +1,75 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-T">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Bot Kontrol Paneli</title>
+    <title>Discord Kontrol Paneli</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Discord Bot Kontrol Paneli</h1>
-        <div id="status-box"></div>
+    <div class="background-shapes"></div>
+    <div class="main-container">
+        <header>
+            <div class="user-info">
+                <img id="bot-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar">
+                <h1 id="bot-username">Kontrol Paneli</h1>
+            </div>
+            <div class="status-light"></div>
+        </header>
 
-        <div class="feature">
-            <h2>AFK Modu</h2>
-            <button id="toggle-afk" class="on">AFK'yı Kapat</button>
-        </div>
+        <div class="grid-container">
+            <div class="card">
+                <h3>Genel Kontroller</h3>
+                <label>AFK Modu</label>
+                <button id="toggle-afk" class="toggle-btn active" data-status="true">Aktif</button>
+            </div>
+            
+            <div class="card">
+                <h3>Durum Değiştirici</h3>
+                <select id="status-type">
+                    <option value="PLAYING">Oynuyor</option>
+                    <option value="WATCHING">İzliyor</option>
+                    <option value="LISTENING">Dinliyor</option>
+                    <option value="STREAMING">Yayınlıyor</option>
+                </select>
+                <input type="text" id="status-name" placeholder="Aktivite adı (örn: Visual Studio Code)">
+                <button id="change-status-btn">Durumu Güncelle</button>
+            </div>
+            
+            <div class="card large-card">
+                <h3>Sunucu Kopyalayıcı</h3>
+                <input type="text" id="source-guild" placeholder="Kopyalanacak Sunucu ID">
+                <input type="text" id="target-guild" placeholder="Hedef Sunucu ID (İçi Temizlenecek)">
+                <p class="warning">Uyarı: Hedef sunucudaki tüm kanallar ve roller silinecektir!</p>
+                <button id="clone-server-btn">Kopyalamayı Başlat</button>
+            </div>
 
-        <div class="feature">
-            <h2>Sahte Nitro Gönder</h2>
-            <input type="text" id="nitro-channel" placeholder="Kanal ID'si">
-            <button id="generate-nitro">Gönder</button>
-        </div>
-
-        <div class="feature">
-            <h2>Sunucu Kopyala</h2>
-            <input type="text" id="clone-guild" placeholder="Sunucu ID'si">
-            <button id="clone-server">Kopyala</button>
-        </div>
-
-        <div class="feature">
-            <h2>DM Temizle</h2>
-            <input type="text" id="clean-user" placeholder="Kullanıcı ID'si">
-            <button id="clean-dm">Temizle</button>
+            <div class="card">
+                <h3>DM Temizleyici</h3>
+                <input type="text" id="clean-user" placeholder="Kullanıcı ID">
+                <button id="clean-dm-btn">Mesajlarımı Temizle</button>
+            </div>
+            
+             <div class="card large-card">
+                <h3>Özel Embed Gönderici</h3>
+                <input type="text" id="embed-channel" placeholder="Kanal ID">
+                <input type="text" id="embed-title" placeholder="Başlık">
+                <textarea id="embed-desc" placeholder="Açıklama"></textarea>
+                <input type="color" id="embed-color" value="#7289da">
+                <input type="text" id="embed-footer" placeholder="Alt bilgi metni">
+                <div id="embed-fields"></div>
+                <button id="add-field-btn" class="secondary-btn">Alan Ekle</button>
+                <button id="send-embed-btn">Embed Gönder</button>
+            </div>
         </div>
     </div>
+    
+    <div id="toast-container"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-  </html>
-  
+</html>
