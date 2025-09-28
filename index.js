@@ -11,7 +11,6 @@ const io = new Server(server);
 
 let client = new Client({ checkUpdate: false });
 let afkEnabled = true;
-let typingIntervals = new Map(); // Kanal ID'lerini ve interval'ları saklamak için
 
 function login(token) {
     if (client && client.readyAt) {
@@ -25,11 +24,7 @@ function login(token) {
         
         io.emit('bot-info', {
             username: client.user.username,
-            tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
-            id: client.user.id,
-            createdAt: client.user.createdAt,
-            serverCount: client.guilds.cache.size
         });
     });
 
@@ -39,33 +34,39 @@ function login(token) {
     });
 }
 
-app.use(express.static(__dirname));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+// 'public' klasöründen statik dosyaları sunmak için güncellendi
+app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', (socket) => {
     console.log('Web arayüzüne bir kullanıcı bağlandı.');
     if (client.user) {
         socket.emit('bot-info', {
             username: client.user.username,
-            tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
-            id: client.user.id,
-            createdAt: client.user.createdAt,
-            serverCount: client.guilds.cache.size
         });
     }
-
-    socket.on('switch-account', (newToken) => {
-        console.log('Hesap değiştirme isteği alındı. Yeniden başlatılıyor...');
-        socket.emit('status-update', { message: 'Hesap değiştiriliyor, arayüz yeniden başlatılacak...', type: 'info' });
-        typingIntervals.forEach(clearInterval); // Tüm 'yazıyor' intervallerini temizle
-        typingIntervals.clear();
-        login(newToken);
-    });
 
     socket.on('toggle-afk', (status) => {
         afkEnabled = status;
         socket.emit('status-update', { message: `AFK modu ${afkEnabled ? 'aktif' : 'pasif'} edildi.`, type: 'success' });
+    });
+
+    socket.on('change-avatar', async (url) => {
+        try {
+            if (!url || !url.startsWith('http')) {
+                return socket.emit('status-update', { message: 'Lütfen geçerli bir resim URL\'si girin.', type: 'error' });
+            }
+            await client.user.setAvatar(url);
+            socket.emit('status-update', { message: 'Avatar başarıyla değiştirildi.', type: 'success' });
+            // Arayüzdeki avatarı anında güncelle
+            socket.emit('bot-info', {
+                username: client.user.username,
+                avatar: client.user.displayAvatarURL(),
+            });
+        } catch (error) {
+            console.error('Avatar değiştirme hatası:', error);
+            socket.emit('status-update', { message: 'Avatar değiştirilemedi. URL\'yi kontrol edin.', type: 'error' });
+        }
     });
 
     socket.on('change-status', (data) => {
@@ -93,10 +94,7 @@ io.on('connection', (socket) => {
             }
             const webhook = new WebhookClient({ url: data.url });
             
-            const messageOptions = {
-                username: data.username || client.user.username,
-                avatarURL: data.avatarURL || client.user.displayAvatarURL()
-            };
+            const messageOptions = {};
             if (data.content) messageOptions.content = data.content;
             
             if (data.embed && (data.embed.title || data.embed.description)) {
@@ -107,7 +105,7 @@ io.on('connection', (socket) => {
                 }];
             }
             
-            if (!messageOptions.content && !messageOptions.embeds) {
+            if (!messageOptions.content && !messageOptions.embeds?.length) {
                 return socket.emit('status-update', { message: 'Gönderilecek bir mesaj veya embed içeriği yok.', type: 'error' });
             }
             
@@ -127,7 +125,7 @@ io.on('connection', (socket) => {
             if (!sourceGuild || !targetGuild) return socket.emit('status-update', { message: 'Kaynak veya hedef sunucu bulunamadı.', type: 'error' });
             if (targetGuild.ownerId !== client.user.id) return socket.emit('status-update', { message: 'Bu işlemi yapmak için hedef sunucunun sahibi olmalısınız!', type: 'error' });
 
-            socket.emit('status-update', { message: 'Kopyalama başladı...', type: 'info' });
+            socket.emit('status-update', { message: 'Kopyalama başladı... Bu işlem sunucunun büyüklüğüne göre zaman alabilir.', type: 'info' });
             
             for (const c of targetGuild.channels.cache.values()) await c.delete().catch(() => {});
             for (const r of targetGuild.roles.cache.values()) if (r.id !== targetGuild.id) await r.delete().catch(() => {});
@@ -144,10 +142,20 @@ io.on('connection', (socket) => {
 
             const categories = [...sourceGuild.channels.cache.filter(c => c.type === 'GUILD_CATEGORY').values()].sort((a,b) => a.position - b.position);
             for (const category of categories) {
-                const newCategory = await targetGuild.channels.create(category.name, { type: 'GUILD_CATEGORY' });
+                const channelPermissions = category.permissionOverwrites.cache.map(po => ({
+                    id: createdRoles.get(po.id)?.id || targetGuild.id,
+                    allow: po.allow.toArray(),
+                    deny: po.deny.toArray()
+                }));
+                const newCategory = await targetGuild.channels.create(category.name, { type: 'GUILD_CATEGORY', permissionOverwrites: channelPermissions });
                 const children = [...sourceGuild.channels.cache.filter(c => c.parentId === category.id).values()].sort((a,b) => a.position - b.position);
                 for (const child of children) {
-                    await newCategory.createChannel(child.name, { type: child.type });
+                    const childPermissions = child.permissionOverwrites.cache.map(po => ({
+                         id: createdRoles.get(po.id)?.id || targetGuild.id,
+                         allow: po.allow.toArray(),
+                         deny: po.deny.toArray()
+                    }));
+                    await newCategory.createChannel(child.name, { type: child.type, permissionOverwrites: childPermissions });
                 }
             }
 
@@ -158,59 +166,29 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('send-dm', async ({ userId, content }) => {
+    socket.on('clean-dm', async (userId) => {
         try {
             const user = await client.users.fetch(userId);
-            await user.send(content);
-            socket.emit('status-update', { message: `${user.tag} adlı kullanıcıya mesaj gönderildi.`, type: 'success' });
-        } catch (error) {
-            console.error('DM gönderme hatası:', error);
-            socket.emit('status-update', { message: 'Mesaj gönderilemedi.', type: 'error' });
-        }
-    });
+            if (!user) return socket.emit('status-update', { message: 'Kullanıcı bulunamadı.', type: 'error' });
     
-    socket.on('ghost-ping', async ({ channelId, userId }) => {
-        try {
-            const channel = await client.channels.fetch(channelId);
-            const message = await channel.send(`<@${userId}>`);
-            await message.delete();
-            socket.emit('status-update', { message: 'Ghost ping başarıyla gönderildi.', type: 'success' });
-        } catch {
-            socket.emit('status-update', { message: 'Ghost ping gönderilemedi. Kanal ID\'sini kontrol edin.', type: 'error' });
-        }
-    });
-
-    socket.on('start-typing', (channelId) => {
-        if (typingIntervals.has(socket.id)) {
-            clearInterval(typingIntervals.get(socket.id));
-        }
-        try {
-            const channel = client.channels.cache.get(channelId);
-            if (!channel) return socket.emit('status-update', { message: 'Kanal bulunamadı.', type: 'error' });
-            
-            channel.sendTyping();
-            const interval = setInterval(() => {
-                channel.sendTyping();
-            }, 8000);
-            typingIntervals.set(socket.id, interval);
-            socket.emit('status-update', { message: `'Yazıyor...' durumu ${channel.name} kanalında başlatıldı.`, type: 'success' });
-        } catch {
-            socket.emit('status-update', { message: 'Yazma durumu başlatılamadı.', type: 'error' });
-        }
-    });
-
-    socket.on('stop-typing', () => {
-        if (typingIntervals.has(socket.id)) {
-            clearInterval(typingIntervals.get(socket.id));
-            typingIntervals.delete(socket.id);
-            socket.emit('status-update', { message: `'Yazıyor...' durumu durduruldu.`, type: 'info' });
-        }
-    });
-
-    socket.on('disconnect', () => {
-        if (typingIntervals.has(socket.id)) {
-            clearInterval(typingIntervals.get(socket.id));
-            typingIntervals.delete(socket.id);
+            const dmChannel = await user.createDM();
+            socket.emit('status-update', { message: `${user.tag} ile olan mesajlarınız siliniyor...`, type: 'info' });
+    
+            const messages = await dmChannel.messages.fetch({ limit: 100 });
+            const userMessages = messages.filter(m => m.author.id === client.user.id);
+            let deletedCount = 0;
+    
+            for (const message of userMessages.values()) {
+                await message.delete();
+                deletedCount++;
+                await new Promise(resolve => setTimeout(resolve, 500)); // Rate limit için bekle
+            }
+    
+            socket.emit('status-update', { message: `Son 100 mesaj içinden size ait ${deletedCount} mesaj silindi.`, type: 'success' });
+    
+        } catch (error) {
+            console.error('DM temizleme hatası:', error);
+            socket.emit('status-update', { message: 'Mesajlar temizlenemedi.', type: 'error' });
         }
     });
 });
@@ -218,3 +196,4 @@ io.on('connection', (socket) => {
 login(config.token);
 
 server.listen(3000, () => console.log('Sunucu 3000 portunda başlatıldı. http://localhost:3000'));
+            
