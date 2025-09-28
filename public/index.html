@@ -25,6 +25,9 @@
                 <h3>Genel Kontroller</h3>
                 <label>AFK Modu</label>
                 <button id="toggle-afk" class="toggle-btn active" data-status="true">Aktif</button>
+                 <h3>Profil Düzenleyici</h3>
+                <input type="text" id="avatar-url" placeholder="Yeni Avatar Resim URL'si">
+                <button id="change-avatar-btn">Avatarı Değiştir</button>
             </div>
             
             <div class="card">
@@ -35,7 +38,8 @@
                     <option value="LISTENING">Dinliyor</option>
                     <option value="STREAMING">Yayınlıyor</option>
                 </select>
-                <input type="text" id="status-name" placeholder="Aktivite adı (örn: Visual Studio Code)">
+                <input type="text" id="status-name" placeholder="Aktivite adı (örn: LoL)">
+                <input type="text" id="custom-status" placeholder="Özel durum metni (isteğe bağlı)">
                 <button id="change-status-btn">Durumu Güncelle</button>
             </div>
             
@@ -54,15 +58,14 @@
             </div>
             
              <div class="card large-card">
-                <h3>Özel Embed Gönderici</h3>
-                <input type="text" id="embed-channel" placeholder="Kanal ID">
-                <input type="text" id="embed-title" placeholder="Başlık">
-                <textarea id="embed-desc" placeholder="Açıklama"></textarea>
-                <input type="color" id="embed-color" value="#7289da">
-                <input type="text" id="embed-footer" placeholder="Alt bilgi metni">
-                <div id="embed-fields"></div>
-                <button id="add-field-btn" class="secondary-btn">Alan Ekle</button>
-                <button id="send-embed-btn">Embed Gönder</button>
+                <h3>Webhook Mesaj Gönderici</h3>
+                <input type="text" id="webhook-url" placeholder="Webhook URL'si">
+                <textarea id="webhook-content" placeholder="Normal mesaj içeriği (isteğe bağlı)"></textarea>
+                <p class="separator"><span>Embed Mesaj (İsteğe Bağlı)</span></p>
+                <input type="text" id="webhook-embed-title" placeholder="Embed Başlığı">
+                <textarea id="webhook-embed-desc" placeholder="Embed Açıklaması"></textarea>
+                 <input type="color" id="webhook-embed-color" value="#7289da">
+                <button id="send-webhook-btn">Webhook Gönder</button>
             </div>
         </div>
     </div>
