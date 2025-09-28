@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-T">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Bot Kontrol Paneli</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Discord Bot Kontrol Paneli</h1>
+        <div id="status-box"></div>
+
+        <div class="feature">
+            <h2>AFK Modu</h2>
+            <button id="toggle-afk" class="on">AFK'yı Kapat</button>
+        </div>
+
+        <div class="feature">
+            <h2>Sahte Nitro Gönder</h2>
+            <input type="text" id="nitro-channel" placeholder="Kanal ID'si">
+            <button id="generate-nitro">Gönder</button>
+        </div>
+
+        <div class="feature">
+            <h2>Sunucu Kopyala</h2>
+            <input type="text" id="clone-guild" placeholder="Sunucu ID'si">
+            <button id="clone-server">Kopyala</button>
+        </div>
+
+        <div class="feature">
+            <h2>DM Temizle</h2>
+            <input type="text" id="clean-user" placeholder="Kullanıcı ID'si">
+            <button id="clean-dm">Temizle</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+  </html>
+  
