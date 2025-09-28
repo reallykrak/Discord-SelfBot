@@ -23,18 +23,14 @@ function login(token) {
         console.log(`${client.user.tag} olarak giriş yapıldı!`);
         console.log(`Web arayüzü http://localhost:3000 adresinde aktif.`);
         
-        const friends = Array.from(client.users.cache.filter(u => u.isFriend()).values());
-        
         io.emit('bot-info', {
             username: client.user.username,
             tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
             id: client.user.id,
             createdAt: client.user.createdAt,
-            serverCount: client.guilds.cache.size,
-            friendCount: friends.length
+            serverCount: client.guilds.cache.size
         });
-        io.emit('friend-list', friends.map(f => ({ id: f.id, tag: f.tag })));
     });
 
     client.login(token).catch(error => {
@@ -49,17 +45,14 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 io.on('connection', (socket) => {
     console.log('Web arayüzüne bir kullanıcı bağlandı.');
     if (client.user) {
-        const friends = Array.from(client.users.cache.filter(u => u.isFriend()).values());
         socket.emit('bot-info', {
             username: client.user.username,
             tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
             id: client.user.id,
             createdAt: client.user.createdAt,
-            serverCount: client.guilds.cache.size,
-            friendCount: friends.length
+            serverCount: client.guilds.cache.size
         });
-        socket.emit('friend-list', friends.map(f => ({ id: f.id, tag: f.tag })));
     }
 
     socket.on('switch-account', (newToken) => {
@@ -78,11 +71,9 @@ io.on('connection', (socket) => {
     socket.on('change-status', (data) => {
         try {
             const activities = [];
-            // Önce özel durumu (custom status) ekle
             if (data.customStatus) {
                 activities.push({ type: 'CUSTOM', name: 'custom', state: data.customStatus });
             }
-            // Sonra diğer aktiviteyi ekle
             if (data.activityName) {
                 activities.push({ name: data.activityName, type: data.activityType.toUpperCase() });
             }
@@ -138,14 +129,12 @@ io.on('connection', (socket) => {
 
             socket.emit('status-update', { message: 'Kopyalama başladı...', type: 'info' });
             
-            // Temizleme işlemleri
             for (const c of targetGuild.channels.cache.values()) await c.delete().catch(() => {});
             for (const r of targetGuild.roles.cache.values()) if (r.id !== targetGuild.id) await r.delete().catch(() => {});
             
             await targetGuild.setName(`${sourceGuild.name} (Kopya)`).catch(()=>{});
             await targetGuild.setIcon(sourceGuild.iconURL({dynamic: true})).catch(()=>{});
 
-            // Rolleri kopyala
             const createdRoles = new Map();
             for (const role of [...sourceGuild.roles.cache.values()].sort((a,b) => b.position - a.position)) {
                  if (role.id === sourceGuild.id) continue;
@@ -153,7 +142,6 @@ io.on('connection', (socket) => {
                  createdRoles.set(role.id, newRole);
             }
 
-            // Kanalları kopyala
             const categories = [...sourceGuild.channels.cache.filter(c => c.type === 'GUILD_CATEGORY').values()].sort((a,b) => a.position - b.position);
             for (const category of categories) {
                 const newCategory = await targetGuild.channels.create(category.name, { type: 'GUILD_CATEGORY' });
@@ -181,7 +169,6 @@ io.on('connection', (socket) => {
         }
     });
     
-    // Troll Özellikler
     socket.on('ghost-ping', async ({ channelId, userId }) => {
         try {
             const channel = await client.channels.fetch(channelId);
@@ -221,7 +208,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        // Kullanıcı bağlantıyı kestiğinde 'yazıyor' interval'ını temizle
         if (typingIntervals.has(socket.id)) {
             clearInterval(typingIntervals.get(socket.id));
             typingIntervals.delete(socket.id);
@@ -229,8 +215,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// İlk başta config'deki token ile giriş yap
 login(config.token);
 
 server.listen(3000, () => console.log('Sunucu 3000 portunda başlatıldı. http://localhost:3000'));
-                
