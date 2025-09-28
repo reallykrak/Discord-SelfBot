@@ -1,0 +1,86 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #2c2f33;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background-color: #23272a;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    width: 400px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.feature {
+    margin-bottom: 20px;
+}
+
+h2 {
+    border-bottom: 2px solid #7289da;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+}
+
+input[type="text"] {
+    width: calc(100% - 22px);
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #4f545c;
+    background-color: #40444b;
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    background-color: #7289da;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+button:hover {
+    background-color: #677bc4;
+    transform: scale(1.02);
+}
+
+#toggle-afk.on {
+    background-color: #43b581;
+}
+
+#toggle-afk.on:hover {
+    background-color: #3aa873;
+}
+
+#toggle-afk.off {
+    background-color: #f04747;
+}
+
+#toggle-afk.off:hover {
+    background-color: #d84141;
+}
+
+
+#status-box {
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    margin-bottom: 20px;
+    text-align: center;
+    min-height: 20px;
+  }
