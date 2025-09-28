@@ -1,14 +1,16 @@
 {
-  "name": "77777",
-  "version": "9.9.9",
-  "description": "#free",
+  "name": "discord-web-bot",
+  "version": "1.0.0",
+  "description": "Discord bot with web interface",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "discord.js-selfbot-v13": "^3.7.0"
+    "discord.js-selfbot-v13": "^3.7.0",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   },
-  "author": "Savage",
+  "author": "Savage & Gemini",
   "license": "MIT"
 }
