@@ -17,12 +17,12 @@
             <ul id="nav-menu">
                 <li class="nav-item"><a href="#home" class="nav-link active"><i class="fas fa-home"></i> Ana Sayfa</a></li>
                 <li class="nav-item"><a href="#status" class="nav-link"><i class="fas fa-user-edit"></i> Profil & Durum</a></li>
-                <li class="nav-item"><a href="#cloner" class="nav-link"><i class="fas fa-copy"></i> Sunucu Kopyalayıcı</a></li>
+                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fas fa-video"></i> Yayın Aç</a></li>
                 <li class="nav-item"><a href="#dm-sender" class="nav-link"><i class="fas fa-paper-plane"></i> DM Gönderici</a></li>
-                <li class="nav-item"><a href="#webhook" class="nav-link"><i class="fas fa-robot"></i> Webhook Gönderici</a></li>
-                <li class="nav-item"><a href="#voice-control" class="nav-link"><i class="fas fa-headset"></i> Ses Kontrolü</a></li>
-                <li class="nav-item"><a href="#troll" class="nav-link"><i class="fas fa-ghost"></i> Troll Özellikler</a></li>
                 <li class="nav-item"><a href="#dm-spammer" class="nav-link"><i class="fas fa-bolt"></i> DM Spammer</a></li>
+                <li class="nav-item"><a href="#cloner" class="nav-link"><i class="fas fa-copy"></i> Sunucu Kopyalayıcı</a></li>
+                <li class="nav-item"><a href="#webhook" class="nav-link"><i class="fas fa-robot"></i> Webhook Gönderici</a></li>
+                <li class="nav-item"><a href="#troll" class="nav-link"><i class="fas fa-ghost"></i> Troll Özellikler</a></li>
                 <li class="nav-item"><a href="#account" class="nav-link"><i class="fas fa-user-circle"></i> Hesap Yönetimi</a></li>
             </ul>
             <div style="margin-top: auto; text-align: center; color: var(--text-muted-color); font-size: 0.8em;">
@@ -37,7 +37,7 @@
                         <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
                         <div class="user-info-text">
                             <h2 id="user-tag">Kullanıcı Adı Yükleniyor...</h2>
-                            <p>Discord kontrol paneline hoş geldin. Buradan hesabınla ilgili birçok ayarı kolayca yönetebilirsin.</p>
+                            <p>Gelişmiş Discord kontrol paneline hoş geldin. Soldaki menüden tüm özellikleri yönetebilirsin.</p>
                         </div>
                     </div>
                      <div class="card">
@@ -49,7 +49,7 @@
             </section>
             
             <section id="status" class="content-section">
-                <div class="card">
+                 <div class="card">
                     <h3>Profil Fotoğrafı Değiştirici</h3>
                     <input type="text" id="avatar-url" placeholder="Yeni Profil Fotoğrafı URL'si (GIF destekler)">
                     <button id="change-avatar-btn">Profil Fotoğrafını Değiştir</button>
@@ -63,9 +63,52 @@
                         <option value="STREAMING">Yayınlıyor</option>
                         <option value="COMPETING">Yarışıyor</option>
                     </select>
-                    <input type="text" id="status-name" placeholder="Aktivite adı (örn: Savage was here)">
+                    <input type="text" id="status-name" placeholder="Aktivite adı">
                     <input type="text" id="custom-status" placeholder="Özel durum metni (isteğe bağlı)">
                     <button id="change-status-btn">Durumu Güncelle</button>
+                </div>
+            </section>
+
+            <section id="streamer" class="content-section">
+                <div class="card">
+                    <h3>Yayın Aç</h3>
+                    <input type="text" id="stream-voice-channel-id" placeholder="Yayın Açılacak Ses Kanalı ID'si">
+                    <input type="text" id="stream-file-name" placeholder="Yayınlanacak Dosya Adı (streams/içinde)">
+                     <p class="warning">Dosyalarınızın projenin ana dizinindeki `streams` klasöründe olduğundan emin olun.</p>
+                    <div class="button-group">
+                        <button id="start-stream-btn">Yayını Başlat</button>
+                        <button id="stop-stream-btn">Yayını Durdur</button>
+                    </div>
+                </div>
+                 <div class="card">
+                    <h3>Fake Kamera</h3>
+                    <input type="text" id="camera-voice-channel-id" placeholder="Kameranın Açılacağı Ses Kanalı ID'si">
+                    <p class="warning">Bu özellik, `streams` klasöründeki `camera.mp4` dosyasını oynatır. Ses kanalında sürekli dönen bir video gösterir.</p>
+                    <button id="toggle-camera-btn" class="toggle-btn" data-status="false">Fake Kamerayı Aç</button>
+                </div>
+            </section>
+
+            <section id="dm-sender" class="content-section">
+                 <div class="card">
+                    <h3>Direkt Mesaj Gönder</h3>
+                    <input type="text" id="dm-user-id" placeholder="Kullanıcı ID'si">
+                    <textarea id="dm-content" placeholder="Gönderilecek mesaj..."></textarea>
+                    <button id="send-dm-btn">Gönder</button>
+                </div>
+            </section>
+
+             <section id="dm-spammer" class="content-section">
+                <div class="card">
+                    <h3>DM Spammer</h3>
+                    <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
+                    <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
+                    <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="spammer-ping">
+                        <label for="spammer-ping">Her mesajda kullanıcıya ping at</label>
+                    </div>
+                     <p class="warning">Uyarı: Bu özellik hesabınızın kapatılmasına neden olabilir. Sorumluluk size aittir.</p>
+                    <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
                 </div>
             </section>
 
@@ -79,41 +122,12 @@
                 </div>
             </section>
 
-            <section id="dm-sender" class="content-section">
-                 <div class="card">
-                    <h3>Direkt Mesaj Gönder</h3>
-                    <input type="text" id="dm-user-id" placeholder="Kullanıcı ID'si">
-                    <textarea id="dm-content" placeholder="Gönderilecek mesaj..."></textarea>
-                    <button id="send-dm-btn">Gönder</button>
-                </div>
-            </section>
-
             <section id="webhook" class="content-section">
                 <div class="card">
                     <h3>Webhook Mesaj Gönderici</h3>
                     <input type="text" id="webhook-url" placeholder="Webhook URL'si">
-                    <textarea id="webhook-content" placeholder="Normal mesaj içeriği (isteğe bağlı)"></textarea>
-                    <h3>Embed Mesaj (İsteğe Bağlı)</h3>
-                    <input type="text" id="webhook-embed-title" placeholder="Embed Başlığı">
-                    <textarea id="webhook-embed-desc" placeholder="Embed Açıklaması"></textarea>
-                    <input type="color" id="webhook-embed-color" value="#89b4fa">
+                    <textarea id="webhook-content" placeholder="Normal mesaj içeriği"></textarea>
                     <button id="send-webhook-btn">Webhook Gönder</button>
-                </div>
-            </section>
-
-             <section id="voice-control" class="content-section">
-                <div class="card">
-                    <h3>Ses Kanalı Kontrolü</h3>
-                    <input type="text" id="voice-channel-id" placeholder="Ses Kanalı ID'si">
-                    <div class="button-group">
-                        <button id="join-voice-btn">Sese Katıl</button>
-                        <button id="leave-voice-btn">Sesten Ayrıl</button>
-                    </div>
-                    <div class="button-group">
-                        <button id="mute-btn" class="toggle-btn" data-status="false">Mikrofonu Kapat</button>
-                        <button id="deafen-btn" class="toggle-btn" data-status="false">Kulaklığı Kapat</button>
-                        <button id="camera-btn" class="toggle-btn" data-status="false">Kamerayı Aç (Fake)</button>
-                    </div>
                 </div>
             </section>
 
@@ -133,22 +147,11 @@
                 </div>
             </section>
 
-            <section id="dm-spammer" class="content-section">
-                <div class="card">
-                    <h3>DM Spammer</h3>
-                    <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
-                    <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
-                    <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
-                     <p class="warning">Uyarı: Bu özellik hesabınızın geçici veya kalıcı olarak kapatılmasına neden olabilir. Sorumluluk size aittir.</p>
-                    <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
-                </div>
-            </section>
-
             <section id="account" class="content-section">
                 <div class="card">
                     <h3>Hesap Değiştir</h3>
                     <input type="password" id="new-token" placeholder="Yeni Discord Token'ı">
-                    <p class="warning">Uyarı: Bu işlem paneli yeniden başlatır ve mevcut hesaptan çıkış yapar. Token'larınızı güvenli bir şekilde saklayın!</p>
+                    <p class="warning">Uyarı: Bu işlem paneli yeniden başlatır ve mevcut hesaptan çıkış yapar.</p>
                     <button id="switch-account-btn">Hesabı Değiştir</button>
                 </div>
             </section>
@@ -160,4 +163,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-</html>
+                </html>
+                            
