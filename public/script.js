@@ -10,13 +10,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const botUsername = document.getElementById('bot-username');
     const userAvatar = document.getElementById('user-avatar');
     const userTag = document.getElementById('user-tag');
+
+    // Ana Sayfa
     const afkButton = document.getElementById('toggle-afk');
+
+    // Yayın Yönetimi
+    const toggleStreamBtn = document.getElementById('toggle-stream-btn');
+    const streamChannelIdInput = document.getElementById('stream-voice-channel-id');
+    const toggleCameraBtn = document.getElementById('toggle-camera-btn');
+    const cameraChannelIdInput = document.getElementById('camera-voice-channel-id');
+
+    // Profil Ayarları
     const avatarUrlInput = document.getElementById('avatar-url');
     const changeAvatarBtn = document.getElementById('change-avatar-btn');
     const statusTypeSelect = document.getElementById('status-type');
     const statusNameInput = document.getElementById('status-name');
     const customStatusInput = document.getElementById('custom-status');
     const changeStatusBtn = document.getElementById('change-status-btn');
+
+    // Mesajlaşma
     const dmUserIdInput = document.getElementById('dm-user-id');
     const dmContentInput = document.getElementById('dm-content');
     const sendDmBtn = document.getElementById('send-dm-btn');
@@ -25,20 +37,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const spammerUserIdInput = document.getElementById('spammer-user-id');
     const spammerMessageInput = document.getElementById('spammer-message');
     const spammerPingCheckbox = document.getElementById('spammer-ping');
-    const switchAccountBtn = document.getElementById('switch-account-btn');
-    const newTokenInput = document.getElementById('new-token');
+
+    // Araçlar
     const ghostPingBtn = document.getElementById('ghost-ping-btn');
     const ghostChannelIdInput = document.getElementById('ghost-channel-id');
     const ghostUserIdInput = document.getElementById('ghost-user-id');
     const startTypingBtn = document.getElementById('start-typing-btn');
     const typingChannelIdInput = document.getElementById('typing-channel-id');
-    const startStreamBtn = document.getElementById('start-stream-btn');
-    const stopStreamBtn = document.getElementById('stop-stream-btn');
-    const streamChannelIdInput = document.getElementById('stream-voice-channel-id');
-    const streamFileInput = document.getElementById('stream-file-name');
-    const toggleCameraBtn = document.getElementById('toggle-camera-btn');
-    const cameraChannelIdInput = document.getElementById('camera-voice-channel-id');
-
+    
+    // Hesap Yönetimi
+    const switchAccountBtn = document.getElementById('switch-account-btn');
+    const newTokenInput = document.getElementById('new-token');
+    
     // --- Fonksiyonlar ---
     const showToast = (message, type = 'info') => {
         const toast = document.createElement('div');
@@ -50,7 +60,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const switchPage = (hash) => {
         navLinks.forEach(link => link.classList.toggle('active', link.hash === hash));
-        contentSections.forEach(section => section.classList.toggle('active', `#${section.id}` === hash));
+        contentSections.forEach(section => {
+            const isActive = `#${section.id}` === hash;
+            section.style.display = isActive ? 'grid' : 'none';
+            if(isActive) section.classList.add('active');
+            else section.classList.remove('active');
+        });
+    };
+
+    const updateToggleButton = (button, isActive, activeText, inactiveText) => {
+        button.dataset.status = isActive;
+        button.textContent = isActive ? activeText : inactiveText;
+        button.classList.toggle('active', isActive);
     };
 
     // --- Soket Olayları ---
@@ -59,22 +80,32 @@ document.addEventListener('DOMContentLoaded', () => {
         statusLight.classList.add('disconnected');
         showToast('Bağlantı kesildi!', 'error');
     });
+
     socket.on('bot-info', (data) => {
         botAvatar.src = data.avatar;
         userAvatar.src = data.avatar;
         botUsername.textContent = data.username;
         userTag.textContent = data.tag;
     });
+
     socket.on('status-update', ({ message, type }) => showToast(message, type));
-    socket.on('spam-status-change', (isSpamming) => {
-        spamBtn.dataset.status = isSpamming;
-        spamBtn.textContent = isSpamming ? "Spam'ı Durdur" : "Spam'ı Başlat";
-        spamBtn.classList.toggle('active', isSpamming);
+
+    socket.on('stream-status-change', (data) => {
+        if (data.type === 'camera') {
+            updateToggleButton(toggleCameraBtn, data.isActive, 'Kamera Modunu Kapat', 'Kamera Modunu Aç');
+            if (data.isActive) { // Kamera açılınca normal yayını kapat
+                 updateToggleButton(toggleStreamBtn, false, 'Yayını Başlat', 'Yayını Durdur');
+            }
+        } else if (data.type === 'stream') {
+            updateToggleButton(toggleStreamBtn, data.isActive, 'Yayını Durdur', 'Yayını Başlat');
+             if (data.isActive) { // Normal yayın açılınca kamerayı kapat
+                 updateToggleButton(toggleCameraBtn, false, 'Kamera Modunu Aç', 'Kamera Modunu Kapat');
+            }
+        }
     });
-    socket.on('camera-status-change', (isStreaming) => {
-        toggleCameraBtn.dataset.status = isStreaming;
-        toggleCameraBtn.textContent = isStreaming ? "Fake Kamerayı Kapat" : "Fake Kamerayı Aç";
-        toggleCameraBtn.classList.toggle('active', isStreaming);
+
+    socket.on('spam-status-change', (isActive) => {
+        updateToggleButton(spamBtn, isActive, "Spam'ı Durdur", "Spam'ı Başlat");
     });
 
     // --- Olay Dinleyicileri ---
@@ -82,19 +113,34 @@ document.addEventListener('DOMContentLoaded', () => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             window.location.hash = link.hash;
-            switchPage(link.hash);
         });
     });
+    window.addEventListener('hashchange', () => switchPage(window.location.hash || '#home'));
     switchPage(window.location.hash || '#home');
 
+    // Ana Sayfa
     afkButton.addEventListener('click', () => {
         const newStatus = afkButton.dataset.status !== 'true';
         socket.emit('toggle-afk', newStatus);
-        afkButton.dataset.status = newStatus;
-        afkButton.textContent = newStatus ? 'Aktif' : 'Pasif';
-        afkButton.classList.toggle('active', newStatus);
+        updateToggleButton(afkButton, newStatus, 'Aktif', 'Pasif');
     });
     
+    // Yayın Yönetimi
+    toggleStreamBtn.addEventListener('click', () => {
+        const channelId = streamChannelIdInput.value;
+        if (!channelId) return showToast('Lütfen bir ses kanalı ID\'si girin.', 'error');
+        const wantsToStart = toggleStreamBtn.dataset.status !== 'true';
+        socket.emit('toggle-stream', { channelId, status: wantsToStart, type: 'stream' });
+    });
+
+    toggleCameraBtn.addEventListener('click', () => {
+        const channelId = cameraChannelIdInput.value;
+        if (!channelId) return showToast('Lütfen bir ses kanalı ID\'si girin.', 'error');
+        const wantsToStart = toggleCameraBtn.dataset.status !== 'true';
+        socket.emit('toggle-stream', { channelId, status: wantsToStart, type: 'camera' });
+    });
+
+    // Diğer olay dinleyicileri...
     changeAvatarBtn.addEventListener('click', () => {
         const url = avatarUrlInput.value;
         if(!url) return showToast('Lütfen bir URL girin.', 'error');
@@ -102,34 +148,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     changeStatusBtn.addEventListener('click', () => {
-        const activityType = statusTypeSelect.value;
-        const activityName = statusNameInput.value;
-        const customStatus = customStatusInput.value;
-        if (!activityName && !customStatus) return showToast('Lütfen bir aktivite adı veya özel durum girin.', 'error');
-        socket.emit('change-status', { activityType, activityName, customStatus });
+        const data = {
+            activityType: statusTypeSelect.value,
+            activityName: statusNameInput.value,
+            customStatus: customStatusInput.value,
+        };
+        if (!data.activityName && !data.customStatus) return showToast('Lütfen bir aktivite adı veya özel durum girin.', 'error');
+        socket.emit('change-status', data);
     });
     
-    startStreamBtn.addEventListener('click', () => {
-        const channelId = streamChannelIdInput.value;
-        const fileName = streamFileInput.value;
-        if(!channelId || !fileName) return showToast('Lütfen kanal ID ve dosya adını girin.', 'error');
-        socket.emit('start-stream', { channelId, fileName });
-    });
-
-    stopStreamBtn.addEventListener('click', () => socket.emit('stop-stream'));
-    
-    toggleCameraBtn.addEventListener('click', () => {
-        const channelId = cameraChannelIdInput.value;
-        if(!channelId) return showToast('Lütfen kameranın açılacağı ses kanalı ID\'sini girin.', 'error');
-        const newStatus = toggleCameraBtn.dataset.status !== 'true';
-        socket.emit('toggle-camera', { channelId, status: newStatus });
-    });
-
     sendDmBtn.addEventListener('click', () => {
-        const userId = dmUserIdInput.value;
-        const content = dmContentInput.value;
-        if (!userId || !content) return showToast('Lütfen kullanıcı ID ve mesaj girin.', 'error');
-        socket.emit('send-dm', { userId, content });
+        const data = { userId: dmUserIdInput.value, content: dmContentInput.value };
+        if (!data.userId || !data.content) return showToast('Lütfen kullanıcı ID ve mesaj girin.', 'error');
+        socket.emit('send-dm', data);
     });
 
     spamBtn.addEventListener('click', () => {
@@ -147,10 +178,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     ghostPingBtn.addEventListener('click', () => {
-        const channelId = ghostChannelIdInput.value;
-        const userId = ghostUserIdInput.value;
-        if (!channelId || !userId) return showToast('Kanal ve Kullanıcı ID\'si girin.', 'error');
-        socket.emit('ghost-ping', { channelId, userId });
+        const data = { channelId: ghostChannelIdInput.value, userId: ghostUserIdInput.value };
+        if (!data.channelId || !data.userId) return showToast('Kanal ve Kullanıcı ID\'si girin.', 'error');
+        socket.emit('ghost-ping', data);
     });
 
     startTypingBtn.addEventListener('click', () => {
@@ -158,10 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const channelId = typingChannelIdInput.value;
         if (!channelId) return showToast('Lütfen bir kanal ID\'si girin.', 'error');
         socket.emit(isTyping ? 'stop-typing' : 'start-typing', channelId);
-        const newStatus = !isTyping;
-        startTypingBtn.dataset.status = newStatus;
-        startTypingBtn.textContent = newStatus ? 'Durdur' : 'Başlat';
-        startTypingBtn.classList.toggle('active', newStatus);
+        updateToggleButton(startTypingBtn, !isTyping, 'Durdur', 'Başlat');
     });
 
     switchAccountBtn.addEventListener('click', () => {
@@ -171,8 +198,5 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.emit('switch-account', token);
         }
     });
-
-    // Sayfa ilk yüklendiğinde butonların varsayılan durumunu ayarla
-    afkButton.classList.toggle('active', afkButton.dataset.status === 'true');
 });
         
