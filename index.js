@@ -69,7 +69,7 @@ io.on('connection', (socket) => {
         });
     }
 
-    const stopStreaming = (source = 'user') => {
+    const stopStreaming = async (source = 'user') => {
         if (audioPlayer) {
             audioPlayer.stop(true);
             audioPlayer = null;
@@ -78,7 +78,13 @@ io.on('connection', (socket) => {
             currentVoiceConnection.destroy();
             currentVoiceConnection = null;
         }
-        client.user.setPresence({ activities: [] }).catch(() => {});
+        try {
+            if (client && client.user) {
+                await client.user.setPresence({ activities: [] });
+            }
+        } catch (error) {
+            console.error("Presence temizlenirken hata oluştu:", error.message);
+        }
         if (source === 'user') {
             socket.emit('status-update', { message: 'Yayın durduruldu.', type: 'info' });
         }
@@ -96,28 +102,18 @@ io.on('connection', (socket) => {
         
         try {
             const channel = await client.channels.fetch(channelId);
-            if (!channel || !channel.isVoice()) throw new Error('Ses kanalı bulunamadı.');
+            if (!channel || !channel.isVoice()) throw new Error('Ses kanalı bulunamadı veya geçersiz.');
 
-            let videoSourceUrl;
-            if (isCamera) {
-                videoSourceUrl = config.cameraVideoUrl;
-            } else {
-                videoSourceUrl = videoList[Math.floor(Math.random() * videoList.length)];
-            }
+            let videoSourceUrl = isCamera ? config.cameraVideoUrl : videoList[Math.floor(Math.random() * videoList.length)];
             
-            let stream;
-            if (play.yt_validate(videoSourceUrl)) {
-                 if (play.is_expired()) await play.refreshToken();
-                 let yt_info = await play.video_info(videoSourceUrl);
-                 stream = await play.stream_from_info(yt_info);
-            } else {
-                stream = { stream: videoSourceUrl };
-            }
+            let stream = await play.stream(videoSourceUrl);
 
             currentVoiceConnection = joinVoiceChannel({
                 channelId: channel.id,
                 guildId: channel.guild.id,
                 adapterCreator: channel.guild.voiceAdapterCreator,
+                selfDeaf: false,
+                selfMute: false,
             });
 
             await entersState(currentVoiceConnection, VoiceConnectionStatus.Ready, 20000);
@@ -141,11 +137,15 @@ io.on('connection', (socket) => {
 
             audioPlayer.on(AudioPlayerStatus.Idle, () => {
                 console.log("Yayın bitti, yenisi başlatılıyor...");
-                startStreaming(currentStreamInfo.channelId, currentStreamInfo.type === 'camera');
+                if (currentStreamInfo.channelId) {
+                    startStreaming(currentStreamInfo.channelId, currentStreamInfo.type === 'camera');
+                }
             });
             audioPlayer.on('error', error => {
                 console.error(`Audio Player Hatası: ${error.message}, yayın yeniden başlatılıyor...`);
-                startStreaming(currentStreamInfo.channelId, currentStreamInfo.type === 'camera');
+                 if (currentStreamInfo.channelId) {
+                    startStreaming(currentStreamInfo.channelId, currentStreamInfo.type === 'camera');
+                }
             });
 
             io.emit('status-update', { message: `${isCamera ? 'Kamera modu' : 'Yayın'} başlatıldı.`, type: 'success' });
@@ -168,12 +168,69 @@ io.on('connection', (socket) => {
     
     socket.on('toggle-afk', (status) => { afkEnabled = status; });
     socket.on('switch-account', (token) => { login(token); });
-    socket.on('change-avatar', async (url) => { try { await client.user.setAvatar(url); } catch (e) { console.error(e); } });
-    socket.on('change-status', (data) => { try { client.user.setPresence({ activities: [{ name: data.activityName, type: data.activityType.toUpperCase(), state: data.customStatus }] }); } catch (e) { console.error(e); } });
-    socket.on('send-dm', async (data) => { try { const user = await client.users.fetch(data.userId); await user.send(data.content); } catch (e) { console.error(e); } });
-    socket.on('ghost-ping', async (data) => { try { const channel = await client.channels.fetch(data.channelId); const msg = await channel.send(`<@${data.userId}>`); await msg.delete(); } catch (e) { console.error(e); } });
-    socket.on('start-typing', async (channelId) => { try { const channel = await client.channels.fetch(channelId); channel.startTyping(); } catch (e) { console.error(e); } });
-    socket.on('stop-typing', async (channelId) => { try { const channel = await client.channels.fetch(channelId); channel.stopTyping(true); } catch (e) { console.error(e); } });
+
+    socket.on('change-avatar', async (url) => {
+        try {
+            await client.user.setAvatar(url);
+            socket.emit('status-update', { message: 'Profil fotoğrafı güncellendi.', type: 'success' });
+        } catch (e) {
+            console.error("Avatar Değiştirme Hatası:", e.message);
+            socket.emit('status-update', { message: 'Avatar değiştirilemedi: ' + e.message, type: 'error' });
+        }
+    });
+
+    socket.on('change-status', async (data) => {
+        try {
+            await client.user.setPresence({ activities: [{ name: data.activityName, type: data.activityType.toUpperCase(), state: data.customStatus }] });
+            socket.emit('status-update', { message: 'Durum güncellendi.', type: 'success' });
+        } catch (e) {
+            console.error("Durum Değiştirme Hatası:", e.message);
+            socket.emit('status-update', { message: 'Durum değiştirilemedi: ' + e.message, type: 'error' });
+        }
+    });
+
+    socket.on('send-dm', async (data) => {
+        try {
+            const user = await client.users.fetch(data.userId);
+            await user.send(data.content);
+            socket.emit('status-update', { message: 'DM başarıyla gönderildi.', type: 'success' });
+        } catch (e) {
+            console.error("DM Gönderme Hatası:", e.message);
+            socket.emit('status-update', { message: 'DM gönderilemedi: ' + e.message, type: 'error' });
+        }
+    });
+
+    socket.on('ghost-ping', async (data) => {
+        try {
+            const channel = await client.channels.fetch(data.channelId);
+            const msg = await channel.send(`<@${data.userId}>`);
+            await msg.delete();
+            socket.emit('status-update', { message: 'Ghost ping gönderildi.', type: 'info' });
+        } catch (e) {
+            console.error("Ghost Ping Hatası:", e.message);
+            socket.emit('status-update', { message: 'Ghost ping atılamadı: ' + e.message, type: 'error' });
+        }
+    });
+    
+    socket.on('start-typing', async (channelId) => {
+        try {
+            const channel = await client.channels.fetch(channelId);
+            await channel.startTyping();
+        } catch (e) {
+            console.error("'Yazıyor...' Başlatma Hatası:", e.message);
+            socket.emit('status-update', { message: "'Yazıyor...' durumu başlatılamadı.", type: 'error' });
+        }
+    });
+
+    socket.on('stop-typing', async (channelId) => {
+        try {
+            const channel = await client.channels.fetch(channelId);
+            channel.stopTyping(true);
+        } catch (e) {
+            console.error("'Yazıyor...' Durdurma Hatası:", e.message);
+        }
+    });
+
     socket.on('toggle-spam', async (data) => {
         if (spamInterval) {
             clearInterval(spamInterval);
@@ -181,20 +238,33 @@ io.on('connection', (socket) => {
             if (spammerClient) spammerClient.destroy();
             spammerClient = null;
             socket.emit('spam-status-change', false);
+            socket.emit('status-update', { message: 'Spam durduruldu.', type: 'info' });
             return;
         }
         spammerClient = new Client({ checkUpdate: false });
-        spammerClient.login(data.token).then(async () => {
+        try {
+            await spammerClient.login(data.token);
             const user = await spammerClient.users.fetch(data.userId);
             socket.emit('spam-status-change', true);
+            socket.emit('status-update', { message: 'Spam başlatıldı!', type: 'success' });
             const msg = data.ping ? `<@${data.userId}> ${data.message}` : data.message;
-            spamInterval = setInterval(() => user.send(msg).catch(() => {
-                clearInterval(spamInterval);
-                socket.emit('spam-status-change', false);
-            }), 1500);
-        }).catch(() => socket.emit('status-update', { message: 'Spam için geçersiz Token.', type: 'error' }));
+            spamInterval = setInterval(() => {
+                user.send(msg).catch(() => {
+                    clearInterval(spamInterval);
+                    spamInterval = null;
+                    if (spammerClient) spammerClient.destroy();
+                    spammerClient = null;
+                    socket.emit('spam-status-change', false);
+                    socket.emit('status-update', { message: 'Spam durduruldu (hedef engellemiş olabilir).', type: 'error' });
+                });
+            }, 1500);
+        } catch (e) {
+            socket.emit('status-update', { message: 'Spam için geçersiz Token: ' + e.message, type: 'error' });
+            socket.emit('spam-status-change', false);
+        }
     });
 });
 
 login(config.token);
 server.listen(3000, () => console.log('Sunucu http://localhost:3000 portunda başlatıldı.'));
+              
