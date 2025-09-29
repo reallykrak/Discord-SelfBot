@@ -102,6 +102,7 @@ body {
     background-color: var(--success-color);
     box-shadow: 0 0 10px var(--success-color);
     margin-left: auto;
+    display: inline-block;
 }
 
 .status-light.disconnected {
@@ -113,7 +114,7 @@ body {
 #main-content {
     flex-grow: 1;
     padding: 2rem;
-    overflow-y: auto;
+    overflow-y: auto; /* Dikey kaydırma çubuğu eklendi */
 }
 
 .content-section {
@@ -137,6 +138,13 @@ body {
     gap: 1.5rem;
 }
 
+.grid-container-home {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+
 .card {
     background: var(--card-color);
     border: 1px solid var(--border-color);
@@ -148,6 +156,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    margin-bottom: 1.5rem; /* Kartlar arasına boşluk */
 }
 
 .card h3 {
@@ -158,31 +167,18 @@ body {
     margin-bottom: 0.5rem;
 }
 
-.stat-card {
-    align-items: center;
-    text-align: center;
-}
-
-.stat-card .value {
-    font-size: 2.5rem;
-    font-weight: 700;
-}
-
-.stat-card .label {
-    font-size: 0.9rem;
-    color: var(--text-muted-color);
-}
-
 .user-profile-card {
     grid-column: 1 / -1;
     display: flex;
+    flex-direction: column;
     align-items: center;
+    text-align: center;
     gap: 1.5rem;
 }
 
 .user-profile-card img {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
 }
 
@@ -190,8 +186,10 @@ body {
     font-size: 1.8rem;
     font-weight: 600;
 }
-.user-info-text #user-id, .user-info-text #user-created {
+.user-info-text p {
     color: var(--text-muted-color);
+    max-width: 500px;
+    margin-top: 0.5rem;
 }
 
 
@@ -232,6 +230,12 @@ button:hover {
 
 .toggle-btn { background-color: var(--error-color); }
 .toggle-btn.active { background-color: var(--success-color); }
+
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
 
 .warning {
     font-size: 0.85rem;
