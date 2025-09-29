@@ -14,13 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const botUsername = document.getElementById('bot-username');
     const userAvatar = document.getElementById('user-avatar');
     const userTag = document.getElementById('user-tag');
-    const userId = document.getElementById('user-id');
-    const userCreated = document.getElementById('user-created');
-    const serverCount = document.getElementById('server-count');
-    const friendCount = document.getElementById('friend-count');
     const afkButton = document.getElementById('toggle-afk');
 
-    // Durum Değiştirici
+    // Profil & Durum
+    const avatarUrlInput = document.getElementById('avatar-url');
+    const changeAvatarBtn = document.getElementById('change-avatar-btn');
     const statusTypeSelect = document.getElementById('status-type');
     const statusNameInput = document.getElementById('status-name');
     const customStatusInput = document.getElementById('custom-status');
@@ -32,19 +30,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const targetGuildInput = document.getElementById('target-guild');
 
     // DM Gönderici
-    const friendSelect = document.getElementById('friend-select');
+    const dmUserIdInput = document.getElementById('dm-user-id');
     const dmContentInput = document.getElementById('dm-content');
     const sendDmBtn = document.getElementById('send-dm-btn');
 
     // Webhook Gönderici
     const sendWebhookBtn = document.getElementById('send-webhook-btn');
     const webhookUrlInput = document.getElementById('webhook-url');
-    const webhookUsernameInput = document.getElementById('webhook-username');
-    const webhookAvatarInput = document.getElementById('webhook-avatar');
     const webhookContentInput = document.getElementById('webhook-content');
     const webhookEmbedTitleInput = document.getElementById('webhook-embed-title');
     const webhookEmbedDescInput = document.getElementById('webhook-embed-desc');
     const webhookEmbedColorInput = document.getElementById('webhook-embed-color');
+
+    // Ses Kontrolü
+    const voiceChannelIdInput = document.getElementById('voice-channel-id');
+    const joinVoiceBtn = document.getElementById('join-voice-btn');
+    const leaveVoiceBtn = document.getElementById('leave-voice-btn');
+    const muteBtn = document.getElementById('mute-btn');
+    const deafenBtn = document.getElementById('deafen-btn');
+    const cameraBtn = document.getElementById('camera-btn');
 
     // Troll Özellikler
     const ghostPingBtn = document.getElementById('ghost-ping-btn');
@@ -53,6 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const startTypingBtn = document.getElementById('start-typing-btn');
     const typingChannelIdInput = document.getElementById('typing-channel-id');
     
+    // DM Spammer
+    const spamBtn = document.getElementById('spam-btn');
+    const spammerTokenInput = document.getElementById('spammer-token');
+    const spammerUserIdInput = document.getElementById('spammer-user-id');
+    const spammerMessageInput = document.getElementById('spammer-message');
+
     // Hesap Yönetimi
     const switchAccountBtn = document.getElementById('switch-account-btn');
     const newTokenInput = document.getElementById('new-token');
@@ -73,7 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Soket Olayları ---
-    socket.on('connect', () => statusLight.classList.remove('disconnected'));
+    socket.on('connect', () => {
+        statusLight.classList.remove('disconnected');
+    });
     socket.on('disconnect', () => {
         statusLight.classList.add('disconnected');
         showToast('Bağlantı kesildi!', 'error');
@@ -84,23 +96,15 @@ document.addEventListener('DOMContentLoaded', () => {
         userAvatar.src = data.avatar;
         botUsername.textContent = data.username;
         userTag.textContent = data.tag;
-        userId.textContent = `ID: ${data.id}`;
-        userCreated.textContent = `Hesap Oluşturma: ${new Date(data.createdAt).toLocaleDateString('tr-TR')}`;
-        serverCount.textContent = data.serverCount;
-        friendCount.textContent = data.friendCount;
-    });
-
-    socket.on('friend-list', (friends) => {
-        friendSelect.innerHTML = '<option value="">Arkadaş seç...</option>';
-        friends.forEach(friend => {
-            const option = document.createElement('option');
-            option.value = friend.id;
-            option.textContent = friend.tag;
-            friendSelect.appendChild(option);
-        });
     });
 
     socket.on('status-update', ({ message, type }) => showToast(message, type));
+    
+    socket.on('spam-status-change', (isSpamming) => {
+        spamBtn.dataset.status = isSpamming;
+        spamBtn.textContent = isSpamming ? 'Spam\'ı Durdur' : 'Spam\'ı Başlat';
+        spamBtn.classList.toggle('active', isSpamming);
+    });
 
     // --- Olay Dinleyicileri (Event Listeners) ---
 
@@ -112,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
             switchPage(link.hash);
         });
     });
-    // Sayfa yüklendiğinde doğru sekmeyi aç
     switchPage(window.location.hash || '#home');
 
 
@@ -125,7 +128,13 @@ document.addEventListener('DOMContentLoaded', () => {
         afkButton.classList.toggle('active', newStatus);
     });
 
-    // Durum Değiştirici
+    // Profil & Durum
+    changeAvatarBtn.addEventListener('click', () => {
+        const url = avatarUrlInput.value;
+        if(!url) return showToast('Lütfen bir URL girin.', 'error');
+        socket.emit('change-avatar', url);
+    });
+
     changeStatusBtn.addEventListener('click', () => {
         const activityType = statusTypeSelect.value;
         const activityName = statusNameInput.value;
@@ -150,9 +159,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // DM Gönderici
     sendDmBtn.addEventListener('click', () => {
-        const userId = friendSelect.value;
+        const userId = dmUserIdInput.value;
         const content = dmContentInput.value;
-        if (!userId) return showToast('Lütfen bir arkadaş seçin.', 'error');
+        if (!userId) return showToast('Lütfen bir kullanıcı ID\'si girin.', 'error');
         if (!content) return showToast('Lütfen bir mesaj yazın.', 'error');
         socket.emit('send-dm', { userId, content });
         dmContentInput.value = '';
@@ -162,8 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sendWebhookBtn.addEventListener('click', () => {
         const data = {
             url: webhookUrlInput.value,
-            username: webhookUsernameInput.value,
-            avatarURL: webhookAvatarInput.value,
             content: webhookContentInput.value,
             embed: {
                 title: webhookEmbedTitleInput.value,
@@ -174,6 +181,40 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!data.url) return showToast('Webhook URL\'si zorunludur.', 'error');
         socket.emit('send-webhook', data);
     });
+    
+    // Ses Kontrolü
+    joinVoiceBtn.addEventListener('click', () => {
+        const channelId = voiceChannelIdInput.value;
+        if(!channelId) return showToast('Lütfen bir ses kanalı ID\'si girin.', 'error');
+        socket.emit('join-voice', channelId);
+    });
+
+    leaveVoiceBtn.addEventListener('click', () => socket.emit('leave-voice'));
+
+    muteBtn.addEventListener('click', () => {
+        const newStatus = muteBtn.dataset.status !== 'true';
+        socket.emit('toggle-mute', { status: newStatus });
+        muteBtn.dataset.status = newStatus;
+        muteBtn.textContent = newStatus ? 'Mikrofonu Aç' : 'Mikrofonu Kapat';
+        muteBtn.classList.toggle('active', newStatus);
+    });
+
+    deafenBtn.addEventListener('click', () => {
+        const newStatus = deafenBtn.dataset.status !== 'true';
+        socket.emit('toggle-deafen', { status: newStatus });
+        deafenBtn.dataset.status = newStatus;
+        deafenBtn.textContent = newStatus ? 'Kulaklığı Aç' : 'Kulaklığı Kapat';
+        deafenBtn.classList.toggle('active', newStatus);
+    });
+
+    cameraBtn.addEventListener('click', () => {
+        const newStatus = cameraBtn.dataset.status !== 'true';
+        socket.emit('toggle-camera', { status: newStatus });
+        cameraBtn.dataset.status = newStatus;
+        cameraBtn.textContent = newStatus ? 'Kamerayı Kapat' : 'Kamerayı Aç (Fake)';
+        cameraBtn.classList.toggle('active', newStatus);
+    });
+
 
     // Troll Özellikler
     ghostPingBtn.addEventListener('click', () => {
@@ -186,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startTypingBtn.addEventListener('click', () => {
         const isTyping = startTypingBtn.dataset.status === 'true';
         const channelId = typingChannelIdInput.value;
-        if (!channelId && !isTyping) return showToast('Lütfen bir kanal ID\'si girin.', 'error');
+        if (!channelId) return showToast('Lütfen bir kanal ID\'si girin.', 'error');
         
         socket.emit(isTyping ? 'stop-typing' : 'start-typing', channelId);
         
@@ -196,6 +237,25 @@ document.addEventListener('DOMContentLoaded', () => {
         startTypingBtn.classList.toggle('active', newStatus);
     });
     
+    // DM Spammer
+    spamBtn.addEventListener('click', () => {
+        const isSpamming = spamBtn.dataset.status === 'true';
+        
+        const data = {
+            token: spammerTokenInput.value,
+            userId: spammerUserIdInput.value,
+            message: spammerMessageInput.value
+        };
+
+        if(!isSpamming) { // Eğer spam başlamıyorsa, inputları kontrol et
+             if(!data.token || !data.userId || !data.message) {
+                return showToast('Lütfen tüm DM Spammer alanlarını doldurun.', 'error');
+            }
+        }
+        
+        socket.emit('toggle-spam', data);
+    });
+
     // Hesap Yönetimi
     switchAccountBtn.addEventListener('click', () => {
         const token = newTokenInput.value;
@@ -205,4 +265,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-            
+              
