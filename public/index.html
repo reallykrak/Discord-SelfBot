@@ -121,14 +121,41 @@
                     <p class="warning">Bu işlem paneli yeniden başlatır ve mevcut hesaptan çıkış yapar.</p>
                     <button id="switch-account-btn">Hesabı Değiştir</button>
                 </div>
+                <div class="card">
+                    <h3><i class="fa-solid fa-key"></i> Token Rehberi</h3>
+                    <p>Discord token'ını nasıl alacağını bilmiyor musun? Rehberimize göz at.</p>
+                    <button id="show-token-guide">Rehberi Göster</button>
+                </div>
             </section>
         </main>
     </div>
     
     <div id="toast-container"></div>
 
+    <div id="token-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Discord Token'ı Nasıl Alınır?</h2>
+            <p>Discord token'ı, hesabınıza erişim sağlayan hassas bir bilgidir. <strong>Asla kimseyle paylaşmayın!</strong></p>
+            <h4>Yöntem 1: Bilgisayar (En Kolay)</h4>
+            <ol>
+                <li>Discord'u web tarayıcınızda (Chrome, Firefox vb.) açın veya masaüstü uygulamasını başlatın.</li>
+                <li>Klavyenizde <strong>Ctrl + Shift + I</strong> (Windows/Linux) veya <strong>Cmd + Option + I</strong> (Mac) tuşlarına basarak Geliştirici Araçları'nı açın.</li>
+                <li>Geliştirici Araçları penceresinde, <strong>"Network" (Ağ)</strong> sekmesine gidin.</li>
+                <li>Filtre kutusuna <code>/api</code> yazarak ağ isteklerini filtreleyin.</li>
+                <li>Discord'da herhangi bir kanala tıklayın veya bir mesaj gönderin. Ağ istekleri listesinde yeni satırlar görünecektir.</li>
+                <li>Listeden <code>library</code> veya <code>science</code> gibi bir isteğe tıklayın.</li>
+                <li>Sağda açılan panelde <strong>"Headers" (Başlıklar)</strong> sekmesine gidin.</li>
+                <li>Aşağı kaydırarak <strong>"Request Headers" (İstek Başlıkları)</strong> bölümünü bulun.</li>
+                <li>Orada <code>authorization</code> adında bir başlık göreceksiniz. Değeri sizin token'ınızdır. Kopyalayıp panele yapıştırabilirsiniz.</li>
+            </ol>
+            <h4>Yöntem 2: Mobil (Daha Karmaşık)</h4>
+            <p>Mobilden token almak genellikle daha zordur ve teknik bilgi gerektirir. Bilgisayar kullanmanız şiddetle tavsiye edilir. Çoğu mobil tarayıcı, Geliştirici Araçları'nı desteklemez. Bu işlem için genellikle bir bilgisayara bağlı USB hata ayıklama modu veya özel ağ izleme uygulamaları gerekir.</p>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-    </html>
-    
+                </html>
+            
