@@ -1,5 +1,5 @@
 const { Client } = require('discord.js-selfbot-v13');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, VoiceConnectionStatus, entersState, AudioPlayerStatus } = require('@discordjs/voice');
 const config = require('./config.js');
 const express = require('express');
 const http = require('http');
@@ -14,13 +14,11 @@ const io = new Server(server);
 let client = new Client({ checkUpdate: false });
 let afkEnabled = true;
 
-// Global değişkenler
 let spamInterval = null;
 let spammerClient = null;
-let audioPlayer = createAudioPlayer();
+let audioPlayer = null;
 let currentVoiceConnection = null;
 
-// Yayın klasörünü kontrol et
 const streamsDir = path.join(__dirname, 'streams');
 if (!fs.existsSync(streamsDir)) {
     fs.mkdirSync(streamsDir);
@@ -67,7 +65,96 @@ io.on('connection', (socket) => {
         });
     }
 
-    // --- GENEL ---
+    const stopStreaming = (source = 'user') => {
+        if (audioPlayer) {
+            audioPlayer.stop(true);
+            audioPlayer = null;
+        }
+        if (currentVoiceConnection) {
+            currentVoiceConnection.destroy();
+            currentVoiceConnection = null;
+        }
+        client.user.setActivity(null);
+        if (source === 'user') {
+            socket.emit('status-update', { message: 'Yayın durduruldu.', type: 'info' });
+        }
+        socket.emit('camera-status-change', false);
+    };
+
+    const startStreaming = async (channelId, fileName, isCamera) => {
+        if (getVoiceConnection(client.guilds.cache.first()?.id)) {
+            stopStreaming('internal');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        try {
+            const channel = await client.channels.fetch(channelId);
+            if (!channel || !channel.isVoice()) {
+                socket.emit('status-update', { message: 'Geçerli bir ses kanalı ID\'si bulunamadı.', type: 'error' });
+                return;
+            }
+
+            const filePath = path.join(streamsDir, fileName);
+            if (!fs.existsSync(filePath)) {
+                socket.emit('status-update', { message: `'${fileName}' dosyası 'streams' klasöründe bulunamadı.`, type: 'error' });
+                return;
+            }
+
+            currentVoiceConnection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: channel.guild.id,
+                adapterCreator: channel.guild.voiceAdapterCreator,
+                selfDeaf: false,
+                selfMute: false,
+            });
+
+            await entersState(currentVoiceConnection, VoiceConnectionStatus.Ready, 20000);
+
+            const voiceState = channel.guild.voiceStates.cache.get(client.user.id);
+            if (isCamera && voiceState) {
+                await voiceState.setVideo(true);
+                await voiceState.setStreaming(true);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            audioPlayer = createAudioPlayer();
+            const resource = createAudioResource(filePath);
+            
+            audioPlayer.play(resource);
+            currentVoiceConnection.subscribe(audioPlayer);
+
+            audioPlayer.on(AudioPlayerStatus.Idle, () => stopStreaming('auto'));
+            audioPlayer.on('error', error => {
+                console.error(`Audio Player Hatası: ${error.message}`);
+                stopStreaming('error');
+            });
+
+            socket.emit('status-update', { message: `${channel.name} kanalında yayın başlatıldı.`, type: 'success' });
+            if (isCamera) {
+                socket.emit('camera-status-change', true);
+            }
+
+        } catch (error) {
+            console.error("Yayın başlatma hatası:", error);
+            socket.emit('status-update', { message: 'Yayın başlatılamadı. Kanal ID veya FFmpeg kurulumunu kontrol edin.', type: 'error' });
+            if (isCamera) {
+                socket.emit('camera-status-change', false);
+            }
+            stopStreaming('error');
+        }
+    };
+
+    socket.on('start-stream', ({ channelId, fileName }) => startStreaming(channelId, fileName, false));
+    socket.on('stop-stream', () => stopStreaming('user'));
+    socket.on('toggle-camera', ({ channelId, status }) => {
+        if (status) {
+            startStreaming(channelId, 'camera.mp4', true);
+        } else {
+            stopStreaming('user');
+        }
+    });
+    
     socket.on('toggle-afk', (status) => {
         afkEnabled = status;
         socket.emit('status-update', { message: `AFK modu ${afkEnabled ? 'aktif' : 'pasif'} edildi.`, type: 'success' });
@@ -78,7 +165,6 @@ io.on('connection', (socket) => {
         login(token);
     });
 
-    // --- PROFİL & DURUM ---
     socket.on('change-avatar', async (url) => {
         try {
             await client.user.setAvatar(url);
@@ -105,64 +191,6 @@ io.on('connection', (socket) => {
         }
     });
     
-    // --- YAYIN AÇ ---
-    const startStreaming = async (channelId, fileName, isCamera) => {
-        try {
-            const channel = await client.channels.fetch(channelId);
-            if (!channel || !channel.isVoice()) return socket.emit('status-update', { message: 'Geçerli bir ses kanalı ID\'si bulunamadı.', type: 'error' });
-
-            const filePath = path.join(streamsDir, fileName);
-            if (!fs.existsSync(filePath)) return socket.emit('status-update', { message: `'${fileName}' dosyası 'streams' klasöründe bulunamadı.`, type: 'error' });
-
-            currentVoiceConnection = joinVoiceChannel({
-                channelId: channel.id,
-                guildId: channel.guild.id,
-                adapterCreator: channel.guild.voiceAdapterCreator,
-                selfDeaf: false,
-                selfMute: false,
-                selfVideo: isCamera,
-            });
-            
-            await entersState(currentVoiceConnection, VoiceConnectionStatus.Ready, 5000);
-
-            const resource = createAudioResource(filePath);
-            audioPlayer.play(resource);
-            currentVoiceConnection.subscribe(audioPlayer);
-
-            if(isCamera) await channel.guild.me.voice.setStreaming(true);
-
-            socket.emit('status-update', { message: `${channel.name} kanalında yayın başlatıldı.`, type: 'success' });
-            if(isCamera) socket.emit('camera-status-change', true);
-
-        } catch (error) {
-            console.error("Yayın hatası:", error);
-            socket.emit('status-update', { message: 'Yayın başlatılamadı. İzinleri veya dosya yolunu kontrol edin.', type: 'error' });
-            if(isCamera) socket.emit('camera-status-change', false);
-        }
-    };
-
-    const stopStreaming = () => {
-        if (currentVoiceConnection) {
-            currentVoiceConnection.destroy();
-            currentVoiceConnection = null;
-            audioPlayer.stop();
-            audioPlayer = createAudioPlayer(); // Player'ı sıfırla
-            socket.emit('status-update', { message: 'Yayın durduruldu.', type: 'info' });
-            socket.emit('camera-status-change', false);
-        }
-    };
-
-    socket.on('start-stream', ({ channelId, fileName }) => startStreaming(channelId, fileName, false));
-    socket.on('stop-stream', stopStreaming);
-    socket.on('toggle-camera', ({ channelId, status }) => {
-        if (status) {
-            startStreaming(channelId, 'camera.mp4', true);
-        } else {
-            stopStreaming();
-        }
-    });
-
-    // --- DM GÖNDERİCİ & SPAMMER ---
     socket.on('send-dm', async ({ userId, content }) => {
         try {
             const user = await client.users.fetch(userId);
@@ -202,7 +230,7 @@ io.on('connection', (socket) => {
                         socket.emit('spam-status-change', false);
                         socket.emit('status-update', { message: 'Spam durduruldu: Kullanıcı DM kapattı veya engelledi.', type: 'error' });
                     });
-                }, 1500); // Discord rate limit için 1.5 saniyede bir gönder.
+                }, 1500);
             } catch (e) {
                 socket.emit('status-update', { message: 'Spam başlatılamadı: Kullanıcı bulunamadı.', type: 'error' });
                  if (spammerClient) spammerClient.destroy();
@@ -212,8 +240,6 @@ io.on('connection', (socket) => {
         });
     });
 
-    // --- DİĞER FONKSİYONLAR (Değişiklik yok) ---
-    // Troll, Webhook, Sunucu Klonlama...
     socket.on('ghost-ping', async ({ channelId, userId }) => {
         try {
             const channel = await client.channels.fetch(channelId);
@@ -247,4 +273,4 @@ io.on('connection', (socket) => {
 login(config.token);
 
 server.listen(3000, () => console.log('Sunucu 3000 portunda başlatıldı. http://localhost:3000'));
-        
+                                                                       
