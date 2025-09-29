@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Discord Kontrol Paneli</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="app-container">
@@ -15,47 +18,55 @@
                 <h1 id="bot-username">Yükleniyor...</h1>
             </div>
             <ul id="nav-menu">
-                <li class="nav-item"><a href="#home" class="nav-link active"><i class="fas fa-home"></i> Ana Sayfa</a></li>
-                <li class="nav-item"><a href="#status" class="nav-link"><i class="fas fa-user-edit"></i> Profil & Durum</a></li>
-                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fas fa-video"></i> Yayın Aç</a></li>
-                <li class="nav-item"><a href="#dm-sender" class="nav-link"><i class="fas fa-paper-plane"></i> DM Gönderici</a></li>
-                <li class="nav-item"><a href="#dm-spammer" class="nav-link"><i class="fas fa-bolt"></i> DM Spammer</a></li>
-                <li class="nav-item"><a href="#cloner" class="nav-link"><i class="fas fa-copy"></i> Sunucu Kopyalayıcı</a></li>
-                <li class="nav-item"><a href="#webhook" class="nav-link"><i class="fas fa-robot"></i> Webhook Gönderici</a></li>
-                <li class="nav-item"><a href="#troll" class="nav-link"><i class="fas fa-ghost"></i> Troll Özellikler</a></li>
-                <li class="nav-item"><a href="#account" class="nav-link"><i class="fas fa-user-circle"></i> Hesap Yönetimi</a></li>
+                <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-house-user"></i> Ana Sayfa</a></li>
+                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-video"></i> Yayın Yönetimi</a></li>
+                <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-user-pen"></i> Profil Ayarları</a></li>
+                <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-paper-plane"></i> Mesajlaşma</a></li>
+                <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-screwdriver-wrench"></i> Araçlar</a></li>
+                <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-circle"></i> Hesap Yönetimi</a></li>
             </ul>
-            <div style="margin-top: auto; text-align: center; color: var(--text-muted-color); font-size: 0.8em;">
-                <p>Bağlantı Durumu: <span class="status-light"></span></p>
+            <div class="sidebar-footer">
+                <p>Bağlantı: <span class="status-light"></span></p>
             </div>
         </nav>
 
         <main id="main-content">
             <section id="home" class="content-section active">
-                <div class="grid-container-home">
-                    <div class="card user-profile-card">
-                        <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
-                        <div class="user-info-text">
-                            <h2 id="user-tag">Kullanıcı Adı Yükleniyor...</h2>
-                            <p>Gelişmiş Discord kontrol paneline hoş geldin. Soldaki menüden tüm özellikleri yönetebilirsin.</p>
-                        </div>
-                    </div>
-                     <div class="card">
-                        <h3>Genel Kontroller</h3>
-                        <label>AFK Modu (Size DM atanlara otomatik mesaj gönderir)</label>
-                        <button id="toggle-afk" class="toggle-btn" data-status="true">Aktif</button>
-                    </div>
+                <div class="card welcome-card">
+                    <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
+                    <h2 id="user-tag">Kullanıcı Adı Yükleniyor...</h2>
+                    <p>Modern kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
+                </div>
+                 <div class="card">
+                    <h3><i class="fa-solid fa-toggle-on"></i> Genel Kontroller</h3>
+                    <label>AFK Modu (Size DM atanlara otomatik mesaj gönderir)</label>
+                    <button id="toggle-afk" class="toggle-btn" data-status="true">Aktif</button>
                 </div>
             </section>
             
-            <section id="status" class="content-section">
+            <section id="streamer" class="content-section">
+                <div class="card">
+                    <h3><i class="fa-solid fa-satellite-dish"></i> Rastgele Yayın</h3>
+                    <p>Aşağıdaki butona basarak `videos.json` listesinden rastgele bir video veya YouTube yayınını başlatabilirsiniz. Yayın bitince veya hata verince otomatik olarak yenisi başlar.</p>
+                    <input type="text" id="stream-voice-channel-id" placeholder="Yayın Açılacak Ses Kanalı ID'si">
+                    <button id="toggle-stream-btn" class="toggle-btn" data-status="false">Yayını Başlat</button>
+                </div>
                  <div class="card">
-                    <h3>Profil Fotoğrafı Değiştirici</h3>
+                    <h3><i class="fa-solid fa-camera-retro"></i> Sabit Kamera Modu</h3>
+                    <p>Bu mod, yapılandırma dosyasında belirtilen sabit bir GIF/video'yu sürekli olarak yayınlar ve kameranız açıkmış gibi görünür.</p>
+                    <input type="text" id="camera-voice-channel-id" placeholder="Kameranın Açılacağı Ses Kanalı ID'si">
+                    <button id="toggle-camera-btn" class="toggle-btn" data-status="false">Kamera Modunu Aç</button>
+                </div>
+            </section>
+
+            <section id="profile" class="content-section">
+                 <div class="card">
+                    <h3><i class="fa-solid fa-image"></i> Profil Fotoğrafı Değiştirici</h3>
                     <input type="text" id="avatar-url" placeholder="Yeni Profil Fotoğrafı URL'si (GIF destekler)">
-                    <button id="change-avatar-btn">Profil Fotoğrafını Değiştir</button>
+                    <button id="change-avatar-btn">Değiştir</button>
                 </div>
                 <div class="card">
-                    <h3>Durum Değiştirici</h3>
+                    <h3><i class="fa-solid fa-gamepad"></i> Durum Değiştirici</h3>
                     <select id="status-type">
                         <option value="PLAYING">Oynuyor</option>
                         <option value="WATCHING">İzliyor</option>
@@ -65,41 +76,19 @@
                     </select>
                     <input type="text" id="status-name" placeholder="Aktivite adı">
                     <input type="text" id="custom-status" placeholder="Özel durum metni (isteğe bağlı)">
-                    <button id="change-status-btn">Durumu Güncelle</button>
+                    <button id="change-status-btn">Güncelle</button>
                 </div>
             </section>
 
-            <section id="streamer" class="content-section">
-                <div class="card">
-                    <h3>Yayın Aç</h3>
-                    <input type="text" id="stream-voice-channel-id" placeholder="Yayın Açılacak Ses Kanalı ID'si">
-                    <input type="text" id="stream-file-name" placeholder="Yayınlanacak Dosya Adı (streams/içinde)">
-                     <p class="warning">Dosyalarınızın projenin ana dizinindeki `streams` klasöründe olduğundan emin olun.</p>
-                    <div class="button-group">
-                        <button id="start-stream-btn">Yayını Başlat</button>
-                        <button id="stop-stream-btn">Yayını Durdur</button>
-                    </div>
-                </div>
+            <section id="messaging" class="content-section">
                  <div class="card">
-                    <h3>Fake Kamera</h3>
-                    <input type="text" id="camera-voice-channel-id" placeholder="Kameranın Açılacağı Ses Kanalı ID'si">
-                    <p class="warning">Bu özellik, `streams` klasöründeki `camera.mp4` dosyasını oynatır. Ses kanalında sürekli dönen bir video gösterir.</p>
-                    <button id="toggle-camera-btn" class="toggle-btn" data-status="false">Fake Kamerayı Aç</button>
-                </div>
-            </section>
-
-            <section id="dm-sender" class="content-section">
-                 <div class="card">
-                    <h3>Direkt Mesaj Gönder</h3>
+                    <h3><i class="fa-solid fa-envelope"></i> Direkt Mesaj Gönder</h3>
                     <input type="text" id="dm-user-id" placeholder="Kullanıcı ID'si">
                     <textarea id="dm-content" placeholder="Gönderilecek mesaj..."></textarea>
                     <button id="send-dm-btn">Gönder</button>
                 </div>
-            </section>
-
-             <section id="dm-spammer" class="content-section">
-                <div class="card">
-                    <h3>DM Spammer</h3>
+                 <div class="card">
+                    <h3><i class="fa-solid fa-bolt"></i> DM Spammer</h3>
                     <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
                     <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
                     <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
@@ -107,51 +96,29 @@
                         <input type="checkbox" id="spammer-ping">
                         <label for="spammer-ping">Her mesajda kullanıcıya ping at</label>
                     </div>
-                     <p class="warning">Uyarı: Bu özellik hesabınızın kapatılmasına neden olabilir. Sorumluluk size aittir.</p>
                     <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
                 </div>
             </section>
 
-            <section id="cloner" class="content-section">
+            <section id="tools" class="content-section">
                 <div class="card">
-                    <h3>Sunucu Kopyalayıcı</h3>
-                    <input type="text" id="source-guild" placeholder="Kopyalanacak Sunucu ID">
-                    <input type="text" id="target-guild" placeholder="Hedef Sunucu ID (İçi Temizlenecek)">
-                    <p class="warning">Uyarı: Hedef sunucudaki tüm kanallar ve roller silinecektir!</p>
-                    <button id="clone-server-btn">Kopyalamayı Başlat</button>
+                    <h3><i class="fa-solid fa-ghost"></i> Ghost Ping (Gönder & Sil)</h3>
+                    <input type="text" id="ghost-channel-id" placeholder="Kanal ID">
+                    <input type="text" id="ghost-user-id" placeholder="Kullanıcı ID">
+                    <button id="ghost-ping-btn">Ping Gönder</button>
                 </div>
-            </section>
-
-            <section id="webhook" class="content-section">
                 <div class="card">
-                    <h3>Webhook Mesaj Gönderici</h3>
-                    <input type="text" id="webhook-url" placeholder="Webhook URL'si">
-                    <textarea id="webhook-content" placeholder="Normal mesaj içeriği"></textarea>
-                    <button id="send-webhook-btn">Webhook Gönder</button>
-                </div>
-            </section>
-
-            <section id="troll" class="content-section">
-                <div class="grid-container">
-                    <div class="card">
-                        <h3>Ghost Ping (Gönder & Sil)</h3>
-                        <input type="text" id="ghost-channel-id" placeholder="Kanal ID">
-                        <input type="text" id="ghost-user-id" placeholder="Kullanıcı ID">
-                        <button id="ghost-ping-btn">Ping Gönder</button>
-                    </div>
-                    <div class="card">
-                        <h3>Sürekli 'Yazıyor...' Göster</h3>
-                        <input type="text" id="typing-channel-id" placeholder="Kanal ID">
-                        <button id="start-typing-btn" class="toggle-btn" data-status="false">Başlat</button>
-                    </div>
+                    <h3><i class="fa-solid fa-keyboard"></i> Sürekli 'Yazıyor...' Göster</h3>
+                    <input type="text" id="typing-channel-id" placeholder="Kanal ID">
+                    <button id="start-typing-btn" class="toggle-btn" data-status="false">Başlat</button>
                 </div>
             </section>
 
             <section id="account" class="content-section">
                 <div class="card">
-                    <h3>Hesap Değiştir</h3>
+                    <h3><i class="fa-solid fa-id-card"></i> Hesap Değiştir</h3>
                     <input type="password" id="new-token" placeholder="Yeni Discord Token'ı">
-                    <p class="warning">Uyarı: Bu işlem paneli yeniden başlatır ve mevcut hesaptan çıkış yapar.</p>
+                    <p class="warning">Bu işlem paneli yeniden başlatır ve mevcut hesaptan çıkış yapar.</p>
                     <button id="switch-account-btn">Hesabı Değiştir</button>
                 </div>
             </section>
@@ -163,5 +130,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                </html>
-                            
+    </html>
+    
