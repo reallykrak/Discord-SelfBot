@@ -3,12 +3,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const toastContainer = document.getElementById('toast-container');
     const statusLight = document.querySelector('.status-light');
+    const connectionStatusText = document.getElementById('connection-status-text');
     const navLinks = document.querySelectorAll('.nav-link');
     const contentSections = document.querySelectorAll('.content-section');
-    const botAvatar = document.getElementById('bot-avatar');
-    const botUsername = document.getElementById('bot-username');
+    
+    // Bot Info Elements
     const userAvatar = document.getElementById('user-avatar');
     const userTag = document.getElementById('user-tag');
+    const userId = document.getElementById('user-id');
 
     const afkButton = document.getElementById('toggle-afk');
 
@@ -70,17 +72,20 @@ document.addEventListener('DOMContentLoaded', () => {
         button.classList.toggle('active', isActive);
     };
 
-    socket.on('connect', () => statusLight.classList.remove('disconnected'));
+    socket.on('connect', () => {
+        statusLight.classList.remove('disconnected');
+        connectionStatusText.textContent = 'Bağlanıldı';
+    });
     socket.on('disconnect', () => {
         statusLight.classList.add('disconnected');
+        connectionStatusText.textContent = 'Bağlantı Kesildi';
         showToast('Bağlantı kesildi!', 'error');
     });
 
     socket.on('bot-info', (data) => {
-        botAvatar.src = data.avatar;
         userAvatar.src = data.avatar;
-        botUsername.textContent = data.username;
         userTag.textContent = data.tag;
+        userId.textContent = data.id; // Discord ID'sini ayarla
     });
 
     socket.on('status-update', ({ message, type }) => showToast(message, type));
@@ -144,7 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
             activityName: statusNameInput.value,
             customStatus: customStatusInput.value,
         };
-        if (!data.activityName && !data.customStatus) return showToast('Lütfen bir aktivite adı veya özel durum girin.', 'error');
         socket.emit('change-status', data);
     });
     
@@ -204,4 +208,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-                
+        
