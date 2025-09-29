@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
 
-    // --- Elementler ---
     const toastContainer = document.getElementById('toast-container');
     const statusLight = document.querySelector('.status-light');
     const navLinks = document.querySelectorAll('.nav-link');
@@ -11,16 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const userAvatar = document.getElementById('user-avatar');
     const userTag = document.getElementById('user-tag');
 
-    // Ana Sayfa
     const afkButton = document.getElementById('toggle-afk');
 
-    // Yayın Yönetimi
     const toggleStreamBtn = document.getElementById('toggle-stream-btn');
     const streamChannelIdInput = document.getElementById('stream-voice-channel-id');
     const toggleCameraBtn = document.getElementById('toggle-camera-btn');
     const cameraChannelIdInput = document.getElementById('camera-voice-channel-id');
 
-    // Profil Ayarları
     const avatarUrlInput = document.getElementById('avatar-url');
     const changeAvatarBtn = document.getElementById('change-avatar-btn');
     const statusTypeSelect = document.getElementById('status-type');
@@ -28,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const customStatusInput = document.getElementById('custom-status');
     const changeStatusBtn = document.getElementById('change-status-btn');
 
-    // Mesajlaşma
     const dmUserIdInput = document.getElementById('dm-user-id');
     const dmContentInput = document.getElementById('dm-content');
     const sendDmBtn = document.getElementById('send-dm-btn');
@@ -38,18 +33,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const spammerMessageInput = document.getElementById('spammer-message');
     const spammerPingCheckbox = document.getElementById('spammer-ping');
 
-    // Araçlar
     const ghostPingBtn = document.getElementById('ghost-ping-btn');
     const ghostChannelIdInput = document.getElementById('ghost-channel-id');
     const ghostUserIdInput = document.getElementById('ghost-user-id');
     const startTypingBtn = document.getElementById('start-typing-btn');
     const typingChannelIdInput = document.getElementById('typing-channel-id');
     
-    // Hesap Yönetimi
     const switchAccountBtn = document.getElementById('switch-account-btn');
     const newTokenInput = document.getElementById('new-token');
     
-    // --- Fonksiyonlar ---
+    const showTokenGuideBtn = document.getElementById('show-token-guide');
+    const tokenModal = document.getElementById('token-modal');
+    const modalCloseBtn = tokenModal.querySelector('.modal-close');
+
     const showToast = (message, type = 'info') => {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
@@ -74,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
         button.classList.toggle('active', isActive);
     };
 
-    // --- Soket Olayları ---
     socket.on('connect', () => statusLight.classList.remove('disconnected'));
     socket.on('disconnect', () => {
         statusLight.classList.add('disconnected');
@@ -93,12 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('stream-status-change', (data) => {
         if (data.type === 'camera') {
             updateToggleButton(toggleCameraBtn, data.isActive, 'Kamera Modunu Kapat', 'Kamera Modunu Aç');
-            if (data.isActive) { // Kamera açılınca normal yayını kapat
+            if (data.isActive) {
                  updateToggleButton(toggleStreamBtn, false, 'Yayını Başlat', 'Yayını Durdur');
             }
         } else if (data.type === 'stream') {
             updateToggleButton(toggleStreamBtn, data.isActive, 'Yayını Durdur', 'Yayını Başlat');
-             if (data.isActive) { // Normal yayın açılınca kamerayı kapat
+             if (data.isActive) {
                  updateToggleButton(toggleCameraBtn, false, 'Kamera Modunu Aç', 'Kamera Modunu Kapat');
             }
         }
@@ -108,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateToggleButton(spamBtn, isActive, "Spam'ı Durdur", "Spam'ı Başlat");
     });
 
-    // --- Olay Dinleyicileri ---
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -118,14 +112,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', () => switchPage(window.location.hash || '#home'));
     switchPage(window.location.hash || '#home');
 
-    // Ana Sayfa
     afkButton.addEventListener('click', () => {
         const newStatus = afkButton.dataset.status !== 'true';
         socket.emit('toggle-afk', newStatus);
         updateToggleButton(afkButton, newStatus, 'Aktif', 'Pasif');
     });
     
-    // Yayın Yönetimi
     toggleStreamBtn.addEventListener('click', () => {
         const channelId = streamChannelIdInput.value;
         if (!channelId) return showToast('Lütfen bir ses kanalı ID\'si girin.', 'error');
@@ -140,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('toggle-stream', { channelId, status: wantsToStart, type: 'camera' });
     });
 
-    // Diğer olay dinleyicileri...
     changeAvatarBtn.addEventListener('click', () => {
         const url = avatarUrlInput.value;
         if(!url) return showToast('Lütfen bir URL girin.', 'error');
@@ -198,5 +189,19 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.emit('switch-account', token);
         }
     });
+    
+    showTokenGuideBtn.addEventListener('click', () => {
+        tokenModal.style.display = 'flex';
+    });
+
+    modalCloseBtn.addEventListener('click', () => {
+        tokenModal.style.display = 'none';
+    });
+
+    tokenModal.addEventListener('click', (e) => {
+        if (e.target === tokenModal) {
+            tokenModal.style.display = 'none';
+        }
+    });
 });
-        
+                
