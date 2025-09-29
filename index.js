@@ -78,7 +78,7 @@ io.on('connection', (socket) => {
             currentVoiceConnection.destroy();
             currentVoiceConnection = null;
         }
-        client.user.setActivity(null).catch(() => {});
+        client.user.setPresence({ activities: [] }).catch(() => {});
         if (source === 'user') {
             socket.emit('status-update', { message: 'Yayın durduruldu.', type: 'info' });
         }
@@ -111,7 +111,7 @@ io.on('connection', (socket) => {
                  let yt_info = await play.video_info(videoSourceUrl);
                  stream = await play.stream_from_info(yt_info);
             } else {
-                stream = { stream: videoSourceUrl }; // Direct URL
+                stream = { stream: videoSourceUrl };
             }
 
             currentVoiceConnection = joinVoiceChannel({
@@ -124,8 +124,11 @@ io.on('connection', (socket) => {
 
             const voiceState = channel.guild.voiceStates.cache.get(client.user.id);
             if (voiceState) {
-                await voiceState.setVideo(true);
-                await voiceState.setStreaming(true);
+                if (isCamera) {
+                    await voiceState.setSelfVideo(true);
+                } else {
+                    await voiceState.setSelfStream(true);
+                }
             }
             
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -156,14 +159,13 @@ io.on('connection', (socket) => {
     };
 
     socket.on('toggle-stream', ({ channelId, status, type }) => {
-        if (status) { // Start
+        if (status) {
             startStreaming(channelId, type === 'camera');
-        } else { // Stop
+        } else {
             stopStreaming('user');
         }
     });
     
-    // Diğer tüm socket eventleri
     socket.on('toggle-afk', (status) => { afkEnabled = status; });
     socket.on('switch-account', (token) => { login(token); });
     socket.on('change-avatar', async (url) => { try { await client.user.setAvatar(url); } catch (e) { console.error(e); } });
@@ -196,4 +198,3 @@ io.on('connection', (socket) => {
 
 login(config.token);
 server.listen(3000, () => console.log('Sunucu http://localhost:3000 portunda başlatıldı.'));
-        
