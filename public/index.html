@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Kontrol Paneli</title>
+    <title>Nuron's Self Bot | Kontrol Paneli</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,19 +14,19 @@
     <div id="app-container">
         <nav id="sidebar">
             <div class="sidebar-header">
-                <img id="bot-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar">
-                <h1 id="bot-username">Yükleniyor...</h1>
+                <i class="fa-solid fa-robot logo"></i>
+                <h1>Nuron's Self Bot</h1>
             </div>
             <ul id="nav-menu">
-                <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-house-user"></i> Ana Sayfa</a></li>
-                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-video"></i> Yayın Yönetimi</a></li>
-                <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-user-pen"></i> Profil Ayarları</a></li>
-                <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-paper-plane"></i> Mesajlaşma</a></li>
-                <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-screwdriver-wrench"></i> Araçlar</a></li>
-                <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-circle"></i> Hesap Yönetimi</a></li>
+                <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-house-user"></i> <span>Ana Sayfa</span></a></li>
+                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-video"></i> <span>Yayın Yönetimi</span></a></li>
+                <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-user-pen"></i> <span>Profil Ayarları</span></a></li>
+                <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-paper-plane"></i> <span>Mesajlaşma</span></a></li>
+                <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-screwdriver-wrench"></i> <span>Araçlar</span></a></li>
+                <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-circle"></i> <span>Hesap Yönetimi</span></a></li>
             </ul>
             <div class="sidebar-footer">
-                <p>Bağlantı: <span class="status-light"></span></p>
+                <p>Bağlantı: <span class="status-light"></span> <span id="connection-status-text">Bağlanıldı</span></p>
             </div>
         </nav>
 
@@ -34,7 +34,8 @@
             <section id="home" class="content-section active">
                 <div class="card welcome-card">
                     <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
-                    <h2 id="user-tag">Kullanıcı Adı Yükleniyor...</h2>
+                    <h2 id="user-tag">Yükleniyor...</h2>
+                    <p class="user-id-p">ID: <span id="user-id">...</span></p>
                     <p>Modern kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
                 </div>
                  <div class="card">
@@ -47,13 +48,13 @@
             <section id="streamer" class="content-section">
                 <div class="card">
                     <h3><i class="fa-solid fa-satellite-dish"></i> Rastgele Yayın</h3>
-                    <p>Aşağıdaki butona basarak `videos.json` listesinden rastgele bir video veya YouTube yayınını başlatabilirsiniz. Yayın bitince veya hata verince otomatik olarak yenisi başlar.</p>
+                    <p>Aşağıdaki butona basarak `videos.json` listesinden rastgele bir video veya YouTube yayınını başlatabilirsiniz.</p>
                     <input type="text" id="stream-voice-channel-id" placeholder="Yayın Açılacak Ses Kanalı ID'si">
                     <button id="toggle-stream-btn" class="toggle-btn" data-status="false">Yayını Başlat</button>
                 </div>
                  <div class="card">
                     <h3><i class="fa-solid fa-camera-retro"></i> Sabit Kamera Modu</h3>
-                    <p>Bu mod, yapılandırma dosyasında belirtilen sabit bir GIF/video'yu sürekli olarak yayınlar ve kameranız açıkmış gibi görünür.</p>
+                    <p>Bu mod, yapılandırma dosyasında belirtilen video/sesi arka planda oynatarak kameranız açıkmış gibi görünmenizi sağlar.</p>
                     <input type="text" id="camera-voice-channel-id" placeholder="Kameranın Açılacağı Ses Kanalı ID'si">
                     <button id="toggle-camera-btn" class="toggle-btn" data-status="false">Kamera Modunu Aç</button>
                 </div>
@@ -137,36 +138,16 @@
             <span class="modal-close">&times;</span>
             <h2>Discord Token'ı Nasıl Alınır?</h2>
             <p>Discord token'ı, hesabınıza erişim sağlayan hassas bir bilgidir. <strong>Asla kimseyle paylaşmayın!</strong> Token'ınıza sahip olan biri hesabınızı tamamen ele geçirebilir.</p>
-            
-            <h4>Yöntem 1: Bilgisayar (En Kolay ve Güvenli)</h4>
+            <h4>Yöntem: Geliştirici Araçları (Tarayıcı)</h4>
             <ol>
-                <li>Discord'u web tarayıcınızda (Chrome, Firefox vb.) açın veya masaüstü uygulamasını başlatın.</li>
+                <li>Discord'u web tarayıcınızda (Chrome, Firefox vb.) açın.</li>
                 <li>Klavyenizde <strong>Ctrl + Shift + I</strong> (Windows/Linux) veya <strong>Cmd + Option + I</strong> (Mac) tuşlarına basarak Geliştirici Araçları'nı açın.</li>
                 <li>Geliştirici Araçları penceresinde, üst menüden <strong>"Network" (Ağ)</strong> sekmesine gidin.</li>
-                <li>Sayfayı yenileyin (F5) veya Discord'da herhangi bir kanala tıklayın. Ağ istekleri listesi dolmaya başlayacaktır.</li>
                 <li>Filtre kutusuna <code>/api</code> yazarak ağ isteklerini filtreleyin.</li>
                 <li>Listeden <code>library</code> veya <code>science</code> gibi bir isteğe tıklayın.</li>
                 <li>Sağda açılan panelde <strong>"Headers" (Başlıklar)</strong> sekmesine gidin.</li>
                 <li>Aşağı kaydırarak <strong>"Request Headers" (İstek Başlıkları)</strong> bölümünü bulun.</li>
                 <li>Orada <code>authorization</code> adında bir başlık göreceksiniz. Değeri sizin token'ınızdır. Tırnak işaretleri olmadan kopyalayın.</li>
-            </ol>
-            
-            <h4>Yöntem 2: Android (İleri Düzey)</h4>
-            <p>Bu yöntem daha karmaşıktır ve dikkat gerektirir. Mümkünse bilgisayar kullanın.</p>
-            <ol>
-                <li>Google Play Store'dan <strong>"Kiwi Browser"</strong> uygulamasını indirin. Bu tarayıcı, geliştirici araçlarını desteklemektedir.</li>
-                <li>Kiwi Browser'ı açın ve <code>discord.com/login</code> adresine giderek hesabınıza giriş yapın.</li>
-                <li>Giriş yaptıktan sonra, sağ üstteki üç noktalı menüye dokunun.</li>
-                <li>Açılan menünün en altından <strong>"Geliştirici Araçları"</strong>nı seçin.</li>
-                <li>Geliştirici araçları yeni bir sekmede açılacaktır. Ekran küçük görünebilir, telefonu yan çevirmek yardımcı olabilir.</li>
-                <li>Üst menü çubuğunda <strong>"Network"</strong> sekmesini bulun ve dokunun.</li>
-                <li>Discord'un açık olduğu sekmeye geri dönün ve bir sunucuya veya mesaja tıklayarak ağ aktivitesi oluşturun.</li>
-                <li>Tekrar Geliştirici Araçları sekmesine dönün. İsteklerin listelendiğini göreceksiniz.</li>
-                <li>Filtreleme kutusuna dokunup <code>/api</code> yazın.</li>
-                <li>Filtrelenmiş listeden <code>library</code> gibi bir isteğe dokunun.</li>
-                <li>Açılan detay penceresinde <strong>"Headers"</strong> bölümüne gidin.</li>
-                <li><strong>"Request Headers"</strong> başlığını bulana kadar aşağı kaydırın.</li>
-                <li><code>authorization</code> başlığının karşısındaki uzun metin sizin token'ınızdır. Üzerine uzun basarak kopyalayabilirsiniz.</li>
             </ol>
         </div>
     </div>
@@ -175,4 +156,4 @@
     <script src="script.js"></script>
 </body>
                         </html>
-                     
+    
