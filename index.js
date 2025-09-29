@@ -27,8 +27,8 @@ try {
   videoList = videoData.videoUrls;
   console.log(`${videoList.length} adet video 'videos.json' dosyasından yüklendi.`);
 } catch (error) {
-  console.error("'videos.json' okunurken hata oluştu, varsayılan video kullanılacak.", error);
-  videoList = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"];
+  console.error("'videos.json' okunurken hata oluştu, varsayılan video listesi boş olacak.", error);
+  videoList = [];
 }
 
 function login(token) {
@@ -41,6 +41,7 @@ function login(token) {
             username: client.user.username,
             tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
+            id: client.user.id, // Kullanıcı ID'si arayüze gönderiliyor
         });
         io.emit('status-update', { message: 'Başarıyla giriş yapıldı!', type: 'success' });
     });
@@ -66,6 +67,7 @@ io.on('connection', (socket) => {
             username: client.user.username,
             tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
+            id: client.user.id,
         });
     }
 
@@ -75,6 +77,8 @@ io.on('connection', (socket) => {
             audioPlayer = null;
         }
         if (currentVoiceConnection) {
+            // Unsubscribe before destroying
+            currentVoiceConnection.removeAllListeners();
             currentVoiceConnection.destroy();
             currentVoiceConnection = null;
         }
@@ -94,7 +98,7 @@ io.on('connection', (socket) => {
     };
 
     const startStreaming = async (channelId, isCamera) => {
-        if (getVoiceConnection(channelId)) stopStreaming('internal');
+        if (getVoiceConnection(channelId)) await stopStreaming('internal');
         
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -104,8 +108,19 @@ io.on('connection', (socket) => {
             const channel = await client.channels.fetch(channelId);
             if (!channel || !channel.isVoice()) throw new Error('Ses kanalı bulunamadı veya geçersiz.');
 
-            let videoSourceUrl = isCamera ? config.cameraVideoUrl : videoList[Math.floor(Math.random() * videoList.length)];
-            
+            let videoSourceUrl;
+            if (isCamera) {
+                videoSourceUrl = config.cameraVideoUrl;
+            } else {
+                if (videoList.length === 0) {
+                    throw new Error("'videos.json' dosyanız boş veya okunamadı. Lütfen geçerli video URL'leri ekleyin.");
+                }
+                videoSourceUrl = videoList[Math.floor(Math.random() * videoList.length)];
+            }
+
+            if (!videoSourceUrl) throw new Error("Oynatılacak geçerli bir video URL'si bulunamadı.");
+
+            console.log(`Yayın başlatılıyor: ${videoSourceUrl}`);
             let stream = await play.stream(videoSourceUrl);
 
             currentVoiceConnection = joinVoiceChannel({
@@ -114,6 +129,18 @@ io.on('connection', (socket) => {
                 adapterCreator: channel.guild.voiceAdapterCreator,
                 selfDeaf: false,
                 selfMute: false,
+            });
+            
+            currentVoiceConnection.on(VoiceConnectionStatus.Disconnected, async () => {
+                try {
+                    await Promise.race([
+                        entersState(currentVoiceConnection, VoiceConnectionStatus.Signalling, 5000),
+                        entersState(currentVoiceConnection, VoiceConnectionStatus.Connecting, 5000),
+                    ]);
+                } catch (error) {
+                    console.log("Bağlantı koptu, temizleniyor.");
+                    stopStreaming('internal-disconnect');
+                }
             });
 
             await entersState(currentVoiceConnection, VoiceConnectionStatus.Ready, 20000);
@@ -153,7 +180,7 @@ io.on('connection', (socket) => {
             
         } catch (error) {
             console.error("Yayın başlatma hatası:", error);
-            io.emit('status-update', { message: 'Yayın başlatılamadı: ' + error.message, type: 'error' });
+            io.emit('status-update', { message: `Yayın başlatılamadı: ${error.message}`, type: 'error' });
             stopStreaming('error');
         }
     };
@@ -167,12 +194,19 @@ io.on('connection', (socket) => {
     });
     
     socket.on('toggle-afk', (status) => { afkEnabled = status; });
-    socket.on('switch-account', (token) => { login(token); });
+    socket.on('switch-account', (token) => { stopStreaming('internal'); login(token); });
 
     socket.on('change-avatar', async (url) => {
         try {
             await client.user.setAvatar(url);
             socket.emit('status-update', { message: 'Profil fotoğrafı güncellendi.', type: 'success' });
+             // Arayüzdeki avatarı da güncelle
+            socket.emit('bot-info', {
+                username: client.user.username,
+                tag: client.user.tag,
+                avatar: client.user.displayAvatarURL(),
+                id: client.user.id
+            });
         } catch (e) {
             console.error("Avatar Değiştirme Hatası:", e.message);
             socket.emit('status-update', { message: 'Avatar değiştirilemedi: ' + e.message, type: 'error' });
@@ -181,7 +215,15 @@ io.on('connection', (socket) => {
 
     socket.on('change-status', async (data) => {
         try {
-            await client.user.setPresence({ activities: [{ name: data.activityName, type: data.activityType.toUpperCase(), state: data.customStatus }] });
+            const presenceData = { activities: [] };
+            if (data.activityName) {
+                presenceData.activities.push({
+                    name: data.activityName,
+                    type: data.activityType.toUpperCase(),
+                    state: data.customStatus
+                });
+            }
+            await client.user.setPresence(presenceData);
             socket.emit('status-update', { message: 'Durum güncellendi.', type: 'success' });
         } catch (e) {
             console.error("Durum Değiştirme Hatası:", e.message);
@@ -267,4 +309,4 @@ io.on('connection', (socket) => {
 
 login(config.token);
 server.listen(3000, () => console.log('Sunucu http://localhost:3000 portunda başlatıldı.'));
-              
+                 
