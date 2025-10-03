@@ -453,4 +453,81 @@ io.on('connection', (socket) => {
                         await message.delete();
                         deletedCount++;
                         await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
-    
+                     }
+                    socket.emit('status-update', { message: `${deletedCount} mesaj silindi...`, type: 'info' });
+                }
+                
+                if (messages.size < 100) break;
+                if (messages.last()) {
+                    lastId = messages.last().id;
+                } else {
+                    break; // No more messages
+                }
+            }
+
+            socket.emit('status-update', { message: `Temizlik tamamlandı! Toplam ${deletedCount} mesaj silindi.`, type: 'success' });
+        } catch (e) {
+            console.error("DM Temizleme Hatası:", e.message);
+            socket.emit('status-update', { message: 'DM temizlenemedi: ' + e.message, type: 'error' });
+        }
+    });
+
+    socket.on('toggle-spam', async (data) => {
+        if (spamInterval) {
+            clearInterval(spamInterval);
+            spamInterval = null;
+            if (spammerClient) spammerClient.destroy();
+            spammerClient = null;
+            socket.emit('spam-status-change', false);
+            socket.emit('status-update', { message: 'Spam durduruldu.', type: 'info' });
+            return;
+        }
+        spammerClient = new Client({ checkUpdate: false });
+        try {
+            await spammerClient.login(data.token);
+            const user = await spammerClient.users.fetch(data.userId);
+            socket.emit('spam-status-change', true);
+            socket.emit('status-update', { message: 'Spam başlatıldı!', type: 'success' });
+            const msg = data.ping ? `<@${data.userId}> ${data.message}` : data.message;
+            spamInterval = setInterval(() => {
+                user.send(msg).catch(() => {
+                    clearInterval(spamInterval);
+                    spamInterval = null;
+                    if (spammerClient) spammerClient.destroy();
+                    spammerClient = null;
+                    socket.emit('spam-status-change', false);
+                    socket.emit('status-update', { message: 'Spam durduruldu (hedef engellemiş olabilir).', type: 'error' });
+                });
+            }, 1500);
+        } catch (e) {
+            socket.emit('status-update', { message: 'Spam için geçersiz Token: ' + e.message, type: 'error' });
+            socket.emit('spam-status-change', false);
+        }
+    });
+});
+
+login(config.token);
+
+const magenta = '\u001b[35m';
+const cyan = '\u001b[36m';
+const reset = '\u001b[0m';
+
+const asciiArt = `
+${magenta}  ██████╗ ███████╗  █████╗ ██╗     ██╗  ██╗   ██╗██████╗  █████╗ ██╗  ██╗
+${magenta}  ██╔══██╗██╔════╝ ██╔══██╗██║     ██║  ╚██╗ ██╔╝██╔══██╗██╔══██╗╚██╗██╔╝
+${cyan}  ██████╔╝█████╗   ███████║██║     ██║   ╚████╔╝ ██████╔╝███████║ ╚███╔╝ 
+${cyan}  ██╔══██╗██╔══╝   ██╔══██║██║     ██║    ╚██╔╝  ██╔══██╗██╔══██║ ██╔██╗ 
+${magenta}  ██║  ██║███████╗ ██║  ██║███████╗███████╗   ██║   ██║  ██║██║  ██║██╔╝ ██╗
+${magenta}  ╚═╝  ╚═╝╚══════╝ ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
+`;
+
+console.log(asciiArt);
+console.log(`${cyan}======================================================================${reset}`);
+console.log(`${magenta}                          Sunucu başlatılıyor...                        ${reset}`);
+console.log(`${cyan}======================================================================${reset}`);
+
+
+server.listen(3000, () => {
+    console.log(`${magenta}Sunucu ${cyan}http://localhost:3000${magenta} portunda başarıyla başlatıldı.${reset}`);
+});
+
