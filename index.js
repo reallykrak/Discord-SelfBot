@@ -41,7 +41,7 @@ function login(token) {
             username: client.user.username,
             tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
-            id: client.user.id, // Kullanıcı ID'si arayüze gönderiliyor
+            id: client.user.id,
         });
         io.emit('status-update', { message: 'Başarıyla giriş yapıldı!', type: 'success' });
     });
@@ -77,7 +77,6 @@ io.on('connection', (socket) => {
             audioPlayer = null;
         }
         if (currentVoiceConnection) {
-            // Unsubscribe before destroying
             currentVoiceConnection.removeAllListeners();
             currentVoiceConnection.destroy();
             currentVoiceConnection = null;
@@ -200,7 +199,6 @@ io.on('connection', (socket) => {
         try {
             await client.user.setAvatar(url);
             socket.emit('status-update', { message: 'Profil fotoğrafı güncellendi.', type: 'success' });
-             // Arayüzdeki avatarı da güncelle
             socket.emit('bot-info', {
                 username: client.user.username,
                 tag: client.user.tag,
@@ -215,14 +213,28 @@ io.on('connection', (socket) => {
 
     socket.on('change-status', async (data) => {
         try {
+            const activity = {
+                name: data.activityName,
+                type: data.activityType.toUpperCase(),
+                state: data.customStatus,
+            };
+    
+            // Rich Presence Assets
+            if (data.applicationId && data.largeImageKey) {
+                activity.application_id = data.applicationId;
+                activity.assets = {
+                    large_image: data.largeImageKey,
+                    large_text: data.largeImageText || ' ',
+                    small_image: data.smallImageKey || undefined,
+                    small_text: data.smallImageText || ' '
+                };
+            }
+    
             const presenceData = { activities: [] };
             if (data.activityName) {
-                presenceData.activities.push({
-                    name: data.activityName,
-                    type: data.activityType.toUpperCase(),
-                    state: data.customStatus
-                });
+                presenceData.activities.push(activity);
             }
+            
             await client.user.setPresence(presenceData);
             socket.emit('status-update', { message: 'Durum güncellendi.', type: 'success' });
         } catch (e) {
@@ -273,6 +285,46 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('clean-dm', async (data) => {
+        try {
+            const user = await client.users.fetch(data.userId);
+            if (!user) {
+                return socket.emit('status-update', { message: 'Kullanıcı bulunamadı.', type: 'error' });
+            }
+            const dmChannel = await user.createDM();
+            socket.emit('status-update', { message: `${user.tag} ile olan mesajlar siliniyor...`, type: 'info' });
+
+            let messages;
+            let deletedCount = 0;
+            let lastId = null;
+
+            while(true) {
+                const options = { limit: 100 };
+                if (lastId) options.before = lastId;
+
+                messages = await dmChannel.messages.fetch(options);
+                const userMessages = messages.filter(m => m.author.id === client.user.id);
+                
+                if (userMessages.size > 0) {
+                    for (const message of userMessages.values()) {
+                        await message.delete();
+                        deletedCount++;
+                        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+                    }
+                    socket.emit('status-update', { message: `${deletedCount} mesaj silindi...`, type: 'info' });
+                }
+                
+                if (messages.size < 100) break;
+                lastId = messages.last().id;
+            }
+
+            socket.emit('status-update', { message: `Temizlik tamamlandı! Toplam ${deletedCount} mesaj silindi.`, type: 'success' });
+        } catch (e) {
+            console.error("DM Temizleme Hatası:", e.message);
+            socket.emit('status-update', { message: 'DM temizlenemedi: ' + e.message, type: 'error' });
+        }
+    });
+
     socket.on('toggle-spam', async (data) => {
         if (spamInterval) {
             clearInterval(spamInterval);
@@ -308,5 +360,27 @@ io.on('connection', (socket) => {
 });
 
 login(config.token);
-server.listen(3000, () => console.log('Sunucu http://localhost:3000 portunda başlatıldı.'));
-                 
+
+const magenta = '\u001b[35m';
+const cyan = '\u001b[36m';
+const reset = '\u001b[0m';
+
+const asciiArt = `
+${magenta}  ██████╗ ███████╗  █████╗ ██╗     ██╗  ██╗   ██╗██████╗  █████╗ ██╗  ██╗
+${magenta}  ██╔══██╗██╔════╝ ██╔══██╗██║     ██║  ╚██╗ ██╔╝██╔══██╗██╔══██╗╚██╗██╔╝
+${cyan}  ██████╔╝█████╗   ███████║██║     ██║   ╚████╔╝ ██████╔╝███████║ ╚███╔╝ 
+${cyan}  ██╔══██╗██╔══╝   ██╔══██║██║     ██║    ╚██╔╝  ██╔══██╗██╔══██║ ██╔██╗ 
+${magenta}  ██║  ██║███████╗ ██║  ██║███████╗███████╗   ██║   ██║  ██║██║  ██║██╔╝ ██╗
+${magenta}  ╚═╝  ╚═╝╚══════╝ ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
+`;
+
+console.log(asciiArt);
+console.log(`${cyan}======================================================================${reset}`);
+console.log(`${magenta}                          Sunucu başlatılıyor...                        ${reset}`);
+console.log(`${cyan}======================================================================${reset}`);
+
+
+server.listen(3000, () => {
+    console.log(`${magenta}Sunucu ${cyan}http://localhost:3000${magenta} portunda başarıyla başlatıldı.${reset}`);
+});
+          
