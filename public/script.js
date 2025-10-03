@@ -7,25 +7,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelectorAll('.nav-link');
     const contentSections = document.querySelectorAll('.content-section');
     
-    // Bot Info Elements
+    // Bot Info
     const userAvatar = document.getElementById('user-avatar');
     const userTag = document.getElementById('user-tag');
     const userId = document.getElementById('user-id');
-
     const afkButton = document.getElementById('toggle-afk');
 
+    // Streamer
     const toggleStreamBtn = document.getElementById('toggle-stream-btn');
     const streamChannelIdInput = document.getElementById('stream-voice-channel-id');
     const toggleCameraBtn = document.getElementById('toggle-camera-btn');
     const cameraChannelIdInput = document.getElementById('camera-voice-channel-id');
 
+    // Profile
     const avatarUrlInput = document.getElementById('avatar-url');
     const changeAvatarBtn = document.getElementById('change-avatar-btn');
     const statusTypeSelect = document.getElementById('status-type');
     const statusNameInput = document.getElementById('status-name');
     const customStatusInput = document.getElementById('custom-status');
     const changeStatusBtn = document.getElementById('change-status-btn');
+    // Rich Presence Inputs
+    const statusAppIdInput = document.getElementById('status-app-id');
+    const statusLargeImageInput = document.getElementById('status-large-image');
+    const statusLargeTextInput = document.getElementById('status-large-text');
+    const statusSmallImageInput = document.getElementById('status-small-image');
+    const statusSmallTextInput = document.getElementById('status-small-text');
 
+    // Messaging
     const dmUserIdInput = document.getElementById('dm-user-id');
     const dmContentInput = document.getElementById('dm-content');
     const sendDmBtn = document.getElementById('send-dm-btn');
@@ -34,16 +42,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const spammerUserIdInput = document.getElementById('spammer-user-id');
     const spammerMessageInput = document.getElementById('spammer-message');
     const spammerPingCheckbox = document.getElementById('spammer-ping');
+    const startDmCleanBtn = document.getElementById('start-dm-clean-btn');
+    const dmCleanerUserIdInput = document.getElementById('dm-cleaner-user-id');
 
+    // Tools
     const ghostPingBtn = document.getElementById('ghost-ping-btn');
     const ghostChannelIdInput = document.getElementById('ghost-channel-id');
     const ghostUserIdInput = document.getElementById('ghost-user-id');
     const startTypingBtn = document.getElementById('start-typing-btn');
     const typingChannelIdInput = document.getElementById('typing-channel-id');
     
+    // Account
     const switchAccountBtn = document.getElementById('switch-account-btn');
     const newTokenInput = document.getElementById('new-token');
-    
     const showTokenGuideBtn = document.getElementById('show-token-guide');
     const tokenModal = document.getElementById('token-modal');
     const modalCloseBtn = tokenModal.querySelector('.modal-close');
@@ -67,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateToggleButton = (button, isActive, activeText, inactiveText) => {
-        button.dataset.status = isActive;
+        button.dataset.status = isActive ? 'true' : 'false';
         button.textContent = isActive ? activeText : inactiveText;
         button.classList.toggle('active', isActive);
     };
@@ -85,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('bot-info', (data) => {
         userAvatar.src = data.avatar;
         userTag.textContent = data.tag;
-        userId.textContent = data.id; // Discord ID'sini ayarla
+        userId.textContent = data.id;
     });
 
     socket.on('status-update', ({ message, type }) => showToast(message, type));
@@ -93,14 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('stream-status-change', (data) => {
         if (data.type === 'camera') {
             updateToggleButton(toggleCameraBtn, data.isActive, 'Kamera Modunu Kapat', 'Kamera Modunu Aç');
-            if (data.isActive) {
-                 updateToggleButton(toggleStreamBtn, false, 'Yayını Başlat', 'Yayını Durdur');
-            }
+            if (data.isActive) updateToggleButton(toggleStreamBtn, false, 'Yayını Başlat', 'Yayını Durdur');
         } else if (data.type === 'stream') {
             updateToggleButton(toggleStreamBtn, data.isActive, 'Yayını Durdur', 'Yayını Başlat');
-             if (data.isActive) {
-                 updateToggleButton(toggleCameraBtn, false, 'Kamera Modunu Aç', 'Kamera Modunu Kapat');
-            }
+            if (data.isActive) updateToggleButton(toggleCameraBtn, false, 'Kamera Modunu Aç', 'Kamera Modunu Kapat');
         }
     });
 
@@ -109,10 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.location.hash = link.hash;
-        });
+        link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; });
     });
     window.addEventListener('hashchange', () => switchPage(window.location.hash || '#home'));
     switchPage(window.location.hash || '#home');
@@ -148,6 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
             activityType: statusTypeSelect.value,
             activityName: statusNameInput.value,
             customStatus: customStatusInput.value,
+            applicationId: statusAppIdInput.value,
+            largeImageKey: statusLargeImageInput.value,
+            largeImageText: statusLargeTextInput.value,
+            smallImageKey: statusSmallImageInput.value,
+            smallImageText: statusSmallTextInput.value
         };
         socket.emit('change-status', data);
     });
@@ -156,6 +165,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = { userId: dmUserIdInput.value, content: dmContentInput.value };
         if (!data.userId || !data.content) return showToast('Lütfen kullanıcı ID ve mesaj girin.', 'error');
         socket.emit('send-dm', data);
+    });
+
+    startDmCleanBtn.addEventListener('click', () => {
+        const userId = dmCleanerUserIdInput.value;
+        if (!userId) return showToast('Lütfen bir kullanıcı ID\'si girin.', 'error');
+        if (confirm(`Emin misiniz? Bu kullanıcıyla olan tüm mesajlarınız kalıcı olarak silinecek.`)) {
+            socket.emit('clean-dm', { userId });
+        }
     });
 
     spamBtn.addEventListener('click', () => {
@@ -194,18 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    showTokenGuideBtn.addEventListener('click', () => {
-        tokenModal.style.display = 'flex';
-    });
-
-    modalCloseBtn.addEventListener('click', () => {
-        tokenModal.style.display = 'none';
-    });
-
-    tokenModal.addEventListener('click', (e) => {
-        if (e.target === tokenModal) {
-            tokenModal.style.display = 'none';
-        }
-    });
+    showTokenGuideBtn.addEventListener('click', () => tokenModal.style.display = 'flex');
+    modalCloseBtn.addEventListener('click', () => tokenModal.style.display = 'none');
+    tokenModal.addEventListener('click', (e) => { if (e.target === tokenModal) tokenModal.style.display = 'none'; });
 });
         
