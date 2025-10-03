@@ -3,19 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nuron's Self Bot | Kontrol Paneli</title>
+    <title>REALLYKRAK | Kontrol Paneli</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="app-container">
         <nav id="sidebar">
             <div class="sidebar-header">
-                <i class="fa-solid fa-robot logo"></i>
-                <h1>Nuron's Self Bot</h1>
+                <i class="fa-brands fa-discord logo"></i>
+                <h1>REALLYKRAK</h1>
             </div>
             <ul id="nav-menu">
                 <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-house-user"></i> <span>Ana Sayfa</span></a></li>
@@ -26,7 +23,7 @@
                 <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-circle"></i> <span>Hesap Yönetimi</span></a></li>
             </ul>
             <div class="sidebar-footer">
-                <p>Bağlantı: <span class="status-light"></span> <span id="connection-status-text">Bağlanıldı</span></p>
+                <p>Bağlantı: <span class="status-light"></span> <span id="connection-status-text">Bağlanılıyor...</span></p>
             </div>
         </nav>
 
@@ -36,7 +33,7 @@
                     <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
                     <h2 id="user-tag">Yükleniyor...</h2>
                     <p class="user-id-p">ID: <span id="user-id">...</span></p>
-                    <p>Modern kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
+                    <p>Kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
                 </div>
                  <div class="card">
                     <h3><i class="fa-solid fa-toggle-on"></i> Genel Kontroller</h3>
@@ -66,8 +63,8 @@
                     <input type="text" id="avatar-url" placeholder="Yeni Profil Fotoğrafı URL'si (GIF destekler)">
                     <button id="change-avatar-btn">Değiştir</button>
                 </div>
-                <div class="card">
-                    <h3><i class="fa-solid fa-gamepad"></i> Durum Değiştirici</h3>
+                <div class="card large-card">
+                    <h3><i class="fa-solid fa-gamepad"></i> Durum & Rich Presence Değiştirici</h3>
                     <select id="status-type">
                         <option value="PLAYING">Oynuyor</option>
                         <option value="WATCHING">İzliyor</option>
@@ -75,20 +72,34 @@
                         <option value="STREAMING">Yayınlıyor</option>
                         <option value="COMPETING">Yarışıyor</option>
                     </select>
-                    <input type="text" id="status-name" placeholder="Aktivite adı">
-                    <input type="text" id="custom-status" placeholder="Özel durum metni (isteğe bağlı)">
-                    <button id="change-status-btn">Güncelle</button>
+                    <input type="text" id="status-name" placeholder="Aktivite Adı (örn: Visual Studio Code)">
+                    <input type="text" id="custom-status" placeholder="Özel Durum Metni (örn: Kod yazıyor...)">
+                    <div class="rich-presence-fields">
+                        <p class="info">İsteğe bağlı: Rich Presence için resim ekleyin. (Developer Portal'dan Application ID ve Asset Key gerekir)</p>
+                        <input type="text" id="status-app-id" placeholder="Application ID">
+                        <input type="text" id="status-large-image" placeholder="Büyük Resim Anahtarı (Large Image Key)">
+                        <input type="text" id="status-large-text" placeholder="Büyük Resim Metni (Large Image Text)">
+                        <input type="text" id="status-small-image" placeholder="Küçük Resim Anahtarı (Small Image Key)">
+                        <input type="text" id="status-small-text" placeholder="Küçük Resim Metni (Small Image Text)">
+                    </div>
+                    <button id="change-status-btn">Durumu Güncelle</button>
                 </div>
             </section>
 
             <section id="messaging" class="content-section">
-                 <div class="card">
+                <div class="card">
                     <h3><i class="fa-solid fa-envelope"></i> Direkt Mesaj Gönder</h3>
                     <input type="text" id="dm-user-id" placeholder="Kullanıcı ID'si">
                     <textarea id="dm-content" placeholder="Gönderilecek mesaj..."></textarea>
                     <button id="send-dm-btn">Gönder</button>
                 </div>
-                 <div class="card">
+                <div class="card">
+                    <h3><i class="fa-solid fa-eraser"></i> DM Temizleyici</h3>
+                    <p class="info">Belirtilen kullanıcı ile olan DM'lerinizdeki tüm mesajlarınızı siler. Bu işlem geri alınamaz.</p>
+                    <input type="text" id="dm-cleaner-user-id" placeholder="Kullanıcı ID'si">
+                    <button id="start-dm-clean-btn">Temizliği Başlat</button>
+                </div>
+                <div class="card large-card">
                     <h3><i class="fa-solid fa-bolt"></i> DM Spammer</h3>
                     <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
                     <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
@@ -155,5 +166,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                        </html>
-    
+    </html>
+                                                       
