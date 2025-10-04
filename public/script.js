@@ -37,20 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
         button.classList.toggle('active', isActive);
     };
 
-    // --- PAGE SWITCHING LOGIC ---
+    // --- PAGE SWITCHING LOGIC (OPTIMIZED) ---
     const switchPage = (hash) => {
         const page = hash.substring(1) || 'home';
         if (!templates[page]) return;
-
-        const oldSection = mainContent.querySelector('.content-section');
-        if (oldSection) {
-            oldSection.style.animation = 'fadeOut 0.3s forwards';
-            oldSection.addEventListener('animationend', () => {
-                renderPage(page);
-            }, { once: true });
-        } else {
-            renderPage(page);
-        }
+        
+        // Render page directly for instant switching
+        renderPage(page);
 
         navLinks.forEach(link => link.classList.toggle('active', link.hash === `#${page}`));
     };
@@ -152,9 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const handleDmClean = () => {
         const userId = document.getElementById('dm-cleaner-user-id').value;
+        const delay = document.getElementById('dm-cleaner-delay').value;
         if (!userId) return showToast('Lütfen bir kullanıcı ID\'si girin.', 'error');
+        if (!delay || parseInt(delay) < 500) return showToast('API limitlerini önlemek için gecikme en az 500ms olmalıdır.', 'error');
+
         if (confirm(`Emin misiniz? Bu kullanıcıyla olan tüm mesajlarınız kalıcı olarak silinecek.`)) {
-            socket.emit('clean-dm', { userId });
+            socket.emit('clean-dm', { userId, delay: parseInt(delay) });
         }
     };
     
@@ -164,10 +160,14 @@ document.addEventListener('DOMContentLoaded', () => {
             token: document.getElementById('spammer-token').value,
             userId: document.getElementById('spammer-user-id').value,
             message: document.getElementById('spammer-message').value,
+            delay: document.getElementById('spammer-delay').value,
             ping: document.getElementById('spammer-ping').checked
         };
         if (!isSpamming && (!data.token || !data.userId || !data.message)) {
             return showToast('Lütfen tüm DM Spammer alanlarını doldurun.', 'error');
+        }
+        if (!isSpamming && (!data.delay || parseInt(data.delay) < 500)) {
+             return showToast('API limitlerini önlemek için gecikme en az 500ms olmalıdır.', 'error');
         }
         socket.emit('toggle-spam', data);
     };
@@ -218,10 +218,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const cameraBtn = document.getElementById('toggle-camera-btn');
         if (data.type === 'camera') {
             updateToggleButton(cameraBtn, data.isActive, 'Kamera Modunu Kapat', 'Kamera Modunu Aç');
-            if (data.isActive) updateToggleButton(streamBtn, false, 'Yayını Başlat', 'Yayını Durdur');
+            if (data.isActive) updateToggleButton(streamBtn, false, 'Yayını Durdur', 'Yayını Başlat');
         } else if (data.type === 'stream') {
             updateToggleButton(streamBtn, data.isActive, 'Yayını Durdur', 'Yayını Başlat');
-            if (data.isActive) updateToggleButton(cameraBtn, false, 'Kamera Modunu Aç', 'Kamera Modunu Kapat');
+            if (data.isActive) updateToggleButton(cameraBtn, false, 'Kamera Modunu Kapat', 'Kamera Modunu Aç');
         }
     });
     socket.on('spam-status-change', (isActive) => {
@@ -241,4 +241,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     switchPage(window.location.hash || '#home');
 });
-        
+                                        
