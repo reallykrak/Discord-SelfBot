@@ -69,7 +69,11 @@ body {
     color: var(--primary-color);
     text-shadow: 0 0 10px var(--primary-color);
 }
-.sidebar-header h1 { font-size: 1.4rem; font-weight: 600; }
+
+.sidebar-header h1 { 
+    font-size: 1.4rem; 
+    font-weight: 600; 
+}
 
 #nav-menu {
     list-style: none;
@@ -110,22 +114,6 @@ body {
     border-top: 1px solid var(--border-color);
 }
 
-.song-ticker {
-    width: 100%;
-    overflow: hidden;
-    white-space: nowrap;
-    margin-top: 0.5rem;
-}
-.song-ticker span {
-    display: inline-block;
-    padding-left: 100%;
-    animation: ticker-scroll 15s linear infinite;
-    color: var(--primary-color);
-}
-@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-
-.status-light { /* Değişiklik Yok */ }
-
 #main-content {
     flex-grow: 1;
     padding: 2rem;
@@ -138,7 +126,11 @@ body {
     gap: 1.5rem;
     animation: fadeIn 0.3s ease-in-out;
 }
-@keyframes fadeIn { /* Değişiklik Yok */ }
+
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 .card {
     background: var(--card-color);
@@ -152,14 +144,29 @@ body {
     gap: 1rem;
     transition: all 0.2s ease;
 }
+
 .card:hover {
     border-color: var(--primary-color);
     transform: translateY(-5px);
     box-shadow: 0 8px 30px var(--shadow-color);
 }
-.card.large-card { grid-column: span 2; }
-.welcome-card { /* Değişiklik Yok */ }
-.card h3 { /* Değişiklik Yok */ }
+
+.card.large-card { 
+    grid-column: span 2; 
+}
+
+.welcome-card {
+    grid-column: span 2;
+    align-items: center;
+    text-align: center;
+}
+
+.card h3 {
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.8rem;
+    margin-bottom: 0.5rem;
+}
 
 input, select, textarea, button {
     width: 100%;
@@ -172,8 +179,17 @@ input, select, textarea, button {
     font-size: 0.95rem;
     transition: all 0.2s ease-in-out;
 }
-input:focus, select:focus, textarea:focus { /* Değişiklik Yok */ }
-textarea { min-height: 80px; resize: vertical; }
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+}
+
+textarea { 
+    min-height: 80px; 
+    resize: vertical; 
+}
 
 button {
     color: #fff;
@@ -183,23 +199,62 @@ button {
     font-weight: 600;
     letter-spacing: 0.5px;
 }
+
 button:hover {
     background-color: var(--primary-color);
     box-shadow: 0 0 15px rgba(88, 166, 255, 0.4);
 }
-.button-group, .button-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+
+.toggle-btn { 
+    border-color: var(--error-color); 
 }
-.button-grid { grid-template-columns: repeat(2, 1fr); }
 
-.toggle-btn { border-color: var(--error-color); }
-.toggle-btn:hover { background: var(--error-color); }
-.toggle-btn.active { border-color: var(--success-color); }
-.toggle-btn.active:hover { background: var(--success-color); }
+.toggle-btn:hover { 
+    background: var(--error-color); 
+}
 
-.checkbox-container { /* Değişiklik Yok */ }
-p.warning, p.info { /* Değişiklik Yok */ }
-#toast-container, .toast, #token-modal, .modal-content { /* Değişiklik Yok */ }
-                           
+.toggle-btn.active { 
+    border-color: var(--success-color); 
+    background-color: var(--success-color);
+}
+
+.toggle-btn.active:hover { 
+    background: var(--success-color);
+    filter: brightness(1.2);
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background-color: var(--card-color);
+    color: var(--text-color);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    animation: slideIn 0.3s ease, slideOut 0.3s ease 2.7s;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
