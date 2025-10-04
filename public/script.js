@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const templates = {
         home: document.getElementById('home-template').innerHTML,
-        voice: document.getElementById('voice-template').innerHTML,
+        streamer: document.getElementById('streamer-template').innerHTML,
         profile: document.getElementById('profile-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
         messaging: document.getElementById('messaging-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
         tools: document.getElementById('tools-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
         addEventListenersForPage(page);
         updateDynamicContent();
 
+        if (page === 'streamer') {
+            socket.emit('get-streamer-bots');
+        }
+
         navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${page}`));
     };
 
@@ -46,12 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'home':
                 document.getElementById('toggle-afk')?.addEventListener('click', handleAfkToggle);
                 break;
-            case 'voice':
-                document.getElementById('toggle-music-btn')?.addEventListener('click', handleMusicToggle);
-                document.getElementById('skip-music-btn')?.addEventListener('click', () => socket.emit('music-control', 'skip'));
-                document.querySelectorAll('.voice-btn').forEach(btn => {
-                    btn.addEventListener('click', () => socket.emit('voice-state-change', { action: btn.dataset.action }));
-                });
+            case 'streamer':
+                const container = document.getElementById('streamer-bots-container');
+                if (container) {
+                    container.addEventListener('click', handleStreamerButtonClick);
+                }
                 break;
             case 'profile':
                 document.getElementById('change-avatar-btn')?.addEventListener('click', handleChangeAvatar);
@@ -85,17 +88,54 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const handleStreamerButtonClick = (e) => {
+        const button = e.target.closest('button');
+        if (!button) return;
+
+        const action = button.dataset.action;
+        const token = button.dataset.token;
+
+        if (action === 'start-stream' || action === 'start-camera') {
+            const type = (action === 'start-camera') ? 'camera' : 'stream';
+            socket.emit('start-streamer', { token, type });
+        } else if (action === 'stop-stream') {
+            socket.emit('stop-streamer', { token });
+        }
+    };
+
+    const renderStreamerBots = (bots) => {
+        const container = document.getElementById('streamer-bots-container');
+        if (!container) return;
+
+        container.innerHTML = bots.length > 0 ? '' : '<p>Config dosyasında yönetilecek bot bulunamadı.</p>';
+
+        bots.forEach(bot => {
+            const isOnline = bot.status === 'online';
+            const statusColor = isOnline ? 'var(--success-color)' : 'var(--text-muted-color)';
+            const botCard = `
+                <div class="streamer-card" style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; min-width: 250px;">
+                        <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 40px; height: 40px; border-radius: 50%;">
+                        <div>
+                            <strong style="white-space: nowrap;">${bot.tag || 'Çevrimdışı'}</strong>
+                            <p style="font-size: 0.8em; color: ${statusColor};">${bot.statusText || 'Durduruldu'}</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="toggle-btn" data-action="start-stream" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Yayın Başlat</button>
+                        <button class="toggle-btn" data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
+                        <button class="toggle-btn active" style="border-color: var(--error-color);" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += botCard;
+        });
+    };
+
     const handleAfkToggle = (e) => {
         const wantsToEnable = e.target.dataset.status !== 'true';
         socket.emit('toggle-afk', wantsToEnable);
         updateToggleButton(e.target, wantsToEnable, 'AFK Modu Aktif', 'AFK Modu Pasif');
-    };
-    
-    const handleMusicToggle = (e) => {
-        const channelId = document.getElementById('music-voice-channel-id').value;
-        if (!channelId) return showToast('Lütfen bir ses kanalı ID\'si girin.', 'error');
-        const wantsToStart = e.target.dataset.status !== 'true';
-        socket.emit('toggle-music', { channelId, status: wantsToStart });
     };
 
     const handleChangeAvatar = () => {
@@ -180,20 +220,13 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('bot-info', (data) => { botInfo = data; updateDynamicContent(); });
     socket.on('status-update', ({ message, type }) => showToast(message, type));
     
-    socket.on('music-status-change', ({ isPlaying, songName }) => {
-        const musicBtn = document.getElementById('toggle-music-btn');
-        updateToggleButton(musicBtn, isPlaying, 'Müziği Durdur', 'Müziği Başlat');
-
-        const songDisplay = document.getElementById('current-song-display');
-        if (songDisplay) {
-            songDisplay.textContent = isPlaying ? `🎵 Şimdi Çalıyor: ${songName}` : '';
-        }
-    });
-
     socket.on('spam-status-change', (isActive) => {
         const spamBtn = document.getElementById('spam-btn');
         updateToggleButton(spamBtn, isActive, "Spam'ı Durdur", "Spam'ı Başlat");
     });
+    
+    socket.on('streamer-bots-list', renderStreamerBots);
+    socket.on('streamer-status-update', renderStreamerBots);
 
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; });
@@ -202,4 +235,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     switchPage(window.location.hash || '#home');
 });
-                    
+                                                                              
