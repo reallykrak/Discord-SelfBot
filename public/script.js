@@ -7,10 +7,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelectorAll('.nav-link');
     const contentSections = document.querySelectorAll('.content-section');
     
-    // Bot Info
+    // Bot Info (for Dashboard and top-right)
     const userAvatar = document.getElementById('user-avatar');
-    const userTag = document.getElementById('user-tag');
+    const userTagWelcome = document.getElementById('user-tag-welcome'); // For welcome message
+    const discordUsername = document.getElementById('discord-username'); // For Discord Account card
     const userId = document.getElementById('user-id');
+    const userStatusIndicator = document.getElementById('user-status-indicator');
+    const startBotButton = document.getElementById('start-bot-button'); // New Start button
+    const topRightUsername = document.getElementById('top-right-username'); // Top right username
+
     const afkButton = document.getElementById('toggle-afk');
 
     // Streamer
@@ -70,8 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const switchPage = (hash) => {
         navLinks.forEach(link => link.classList.toggle('active', link.hash === hash));
         contentSections.forEach(section => {
-            const isActive = `#${section.id}` === hash;
-            section.style.display = isActive ? 'grid' : 'none';
+            const isActive = `#${section.id}` === hash.replace('#', ''); // hash'ten # kaldır
+            section.style.display = isActive ? 'flex' : 'none'; // flex olarak ayarlandı
             if(isActive) section.classList.add('active');
             else section.classList.remove('active');
         });
@@ -81,6 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
         button.dataset.status = isActive ? 'true' : 'false';
         button.textContent = isActive ? activeText : inactiveText;
         button.classList.toggle('active', isActive);
+    };
+
+    const updateStatusIndicator = (status) => {
+        userStatusIndicator.classList.remove('online', 'idle', 'dnd', 'offline');
+        userStatusIndicator.classList.add(status);
     };
 
     socket.on('connect', () => {
@@ -95,8 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('bot-info', (data) => {
         userAvatar.src = data.avatar;
-        userTag.textContent = data.tag;
+        userTagWelcome.textContent = data.username; // For welcome message
+        discordUsername.textContent = data.username; // For Discord Account card
         userId.textContent = data.id;
+        topRightUsername.textContent = data.username; // Top right username
+        updateStatusIndicator(data.status); // Update status indicator
     });
 
     socket.on('status-update', ({ message, type }) => showToast(message, type));
@@ -118,13 +131,19 @@ document.addEventListener('DOMContentLoaded', () => {
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; });
     });
-    window.addEventListener('hashchange', () => switchPage(window.location.hash || '#home'));
-    switchPage(window.location.hash || '#home');
+    window.addEventListener('hashchange', () => switchPage(window.location.hash || '#dashboard')); // Değiştirildi: #home -> #dashboard
+    switchPage(window.location.hash || '#dashboard'); // Değiştirildi: #home -> #dashboard
 
     afkButton.addEventListener('click', () => {
         const newStatus = afkButton.dataset.status !== 'true';
         socket.emit('toggle-afk', newStatus);
         updateToggleButton(afkButton, newStatus, 'Aktif', 'Pasif');
+    });
+
+    // New: Start Bot button handler
+    startBotButton.addEventListener('click', () => {
+        socket.emit('start-bot'); // Triggers login with config.token
+        showToast('Bot başlatılıyor...', 'info');
     });
     
     toggleStreamBtn.addEventListener('click', () => {
@@ -215,4 +234,4 @@ document.addEventListener('DOMContentLoaded', () => {
     modalCloseBtn.addEventListener('click', () => tokenModal.style.display = 'none');
     tokenModal.addEventListener('click', (e) => { if (e.target === tokenModal) tokenModal.style.display = 'none'; });
 });
-        
+                          
