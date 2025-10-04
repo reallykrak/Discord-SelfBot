@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
-    <div class="background-animation"></div>
     <div id="app-container">
         <nav id="sidebar">
             <div class="sidebar-header">
@@ -29,7 +28,7 @@
         </nav>
 
         <main id="main-content">
-            </main>
+        </main>
     </div>
     
     <div id="toast-container"></div>
@@ -128,6 +127,7 @@
                 <h3><i class="fa-solid fa-eraser"></i> DM Temizleyici</h3>
                 <p class="info">Belirtilen kullanıcı ile olan DM'lerinizdeki tüm mesajlarınızı siler.</p>
                 <input type="text" id="dm-cleaner-user-id" placeholder="Kullanıcı ID'si">
+                <input type="number" id="dm-cleaner-delay" placeholder="Silme Arası Gecikme (ms)" value="1200">
                 <button id="start-dm-clean-btn">Temizliği Başlat</button>
             </div>
             <div class="card large-card">
@@ -135,6 +135,7 @@
                 <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
                 <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
                 <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
+                <input type="number" id="spammer-delay" placeholder="Mesaj Arası Gecikme (ms)" value="1500">
                 <div class="checkbox-container">
                     <input type="checkbox" id="spammer-ping">
                     <label for="spammer-ping">Her mesajda kullanıcıya ping at</label>
@@ -179,5 +180,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                                                                             </html>
-    
+    </html>
+                                             
