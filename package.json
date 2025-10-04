@@ -16,8 +16,5 @@
     "socket.io": "^4.7.5",
     "opusscript": "^0.0.8",
     "tweetnacl": "^1.0.3"
-  },
-  "overrides": {
-    "@discordjs/opus": "npm:opusscript@^0.0.8"
   }
 }
