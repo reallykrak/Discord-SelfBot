@@ -412,8 +412,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('clean-dm', async (data) => {
+        const { userId, delay } = data;
         try {
-            const user = await client.users.fetch(data.userId);
+            const user = await client.users.fetch(userId);
             if (!user) {
                 return socket.emit('status-update', { message: 'Kullanıcı bulunamadı.', type: 'error' });
             }
@@ -431,7 +432,7 @@ io.on('connection', (socket) => {
                     for (const message of userMessages.values()) {
                         await message.delete();
                         deletedCount++;
-                        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+                        await new Promise(resolve => setTimeout(resolve, delay));
                     }
                     socket.emit('status-update', { message: `${deletedCount} mesaj silindi...`, type: 'info' });
                 }
@@ -473,7 +474,7 @@ io.on('connection', (socket) => {
                     socket.emit('spam-status-change', false);
                     socket.emit('status-update', { message: 'Spam durduruldu (hedef engellemiş olabilir).', type: 'error' });
                 });
-            }, 1500);
+            }, parseInt(data.delay));
         } catch (e) {
             socket.emit('status-update', { message: 'Spam için geçersiz Token: ' + e.message, type: 'error' });
             socket.emit('spam-status-change', false);
