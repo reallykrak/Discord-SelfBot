@@ -23,8 +23,8 @@
                 <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-circle"></i> <span>Hesap Yönetimi</span></a></li>
             </ul>
             <div class="sidebar-footer">
-                <p>Bağlantı: <span class="status-light"></span> <span id="connection-status-text">Bağlanılıyor...</span></p>
-                 <p id="current-song-display" style="font-size: 0.8em; color: var(--primary-color); margin-top: 5px;"></p>
+                <p>Bağlantı: <span id="connection-status-text">Bağlanılıyor...</span></p>
+                <p id="current-song-display" style="font-size: 0.8em; color: var(--primary-color); margin-top: 5px;"></p>
             </div>
         </nav>
 
@@ -33,12 +33,11 @@
     </div>
     
     <div id="toast-container"></div>
-    <div id="token-modal" style="display: none;"> </div>
     
     <template id="home-template">
         <section id="home" class="content-section">
             <div class="card welcome-card">
-                <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
+                <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar" style="width: 100px; height: 100px; border-radius: 50%;">
                 <h2 id="user-tag">Yükleniyor...</h2>
                 <p class="user-id-p">ID: <span id="user-id">...</span></p>
                 <p>Kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
@@ -57,20 +56,20 @@
                 <h3><i class="fa-solid fa-satellite-dish"></i> Rastgele Yayın</h3>
                 <p>Aşağıdaki butona basarak `videos.json` listesinden rastgele bir video veya YouTube yayınını başlatabilirsiniz.</p>
                 <input type="text" id="stream-voice-channel-id" placeholder="Yayın Açılacak Ses Kanalı ID'si">
-                <button id="toggle-stream-btn" class="toggle-btn" data-status="false">Yayını Başlat</button>
+                <button id="toggle-stream-btn" class="toggle-btn" data-type="stream" data-status="false">Yayını Başlat</button>
             </div>
              <div class="card">
                 <h3><i class="fa-solid fa-camera-retro"></i> Sabit Kamera Modu</h3>
                 <p>Bu mod, yapılandırma dosyasında belirtilen video/sesi arka planda oynatarak kameranız açıkmış gibi görünmenizi sağlar.</p>
                 <input type="text" id="camera-voice-channel-id" placeholder="Kameranın Açılacağı Ses Kanalı ID'si">
-                <button id="toggle-camera-btn" class="toggle-btn" data-status="false">Kamera Modunu Aç</button>
+                <button id="toggle-camera-btn" class="toggle-btn" data-type="camera" data-status="false">Kamera Modunu Aç</button>
             </div>
             <div class="card">
                 <h3><i class="fa-solid fa-music"></i> Müzik Çalar</h3>
                 <p class="info">`./music` klasöründeki şarkıları ses kanalında sırayla çalar.</p>
                 <input type="text" id="music-voice-channel-id" placeholder="Müzik Çalınacak Ses Kanalı ID'si">
                 <div style="display: flex; gap: 10px;">
-                    <button id="toggle-music-btn" class="toggle-btn" data-status="false" style="flex-grow: 1;">Müziği Başlat</button>
+                    <button id="toggle-music-btn" class="toggle-btn" data-type="music" data-status="false" style="flex-grow: 1;">Müziği Başlat</button>
                     <button id="skip-music-btn" style="flex-basis: 100px;">Atla</button>
                 </div>
             </div>
@@ -87,12 +86,29 @@
         </section>
     </template>
 
-    <template id="profile-template"> </template>
-
+    <template id="profile-template">
+        <section id="profile" class="content-section">
+            <div class="card">
+                <h3><i class="fa-solid fa-image"></i> Avatar Değiştir</h3>
+                <input type="text" id="avatar-url" placeholder="Yeni Avatar URL'si">
+                <button id="change-avatar-btn">Değiştir</button>
+            </div>
+            <div class="card">
+                <h3><i class="fa-solid fa-signal"></i> Durum Değiştir</h3>
+                <select id="status-type">
+                    <option value="online">Online</option>
+                    <option value="idle">Boşta</option>
+                    <option value="dnd">Rahatsız Etmeyin</option>
+                    <option value="invisible">Görünmez</option>
+                </select>
+                <input type="text" id="status-text" placeholder="Durum Mesajı (isteğe bağlı)">
+                <button id="change-status-btn">Değiştir</button>
+            </div>
+        </section>
+    </template>
+    
     <template id="messaging-template">
         <section id="messaging" class="content-section">
-            <div class="card"> </div>
-            <div class="card"> </div>
             <div class="card large-card">
                 <h3><i class="fa-solid fa-bolt"></i> DM Spammer</h3>
                 <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
@@ -112,11 +128,35 @@
         </section>
     </template>
     
-    <template id="tools-template"> </template>
-    <template id="account-template"> </template>
+    <template id="tools-template">
+         <section id="tools" class="content-section">
+            <div class="card">
+                <h3><i class="fa-solid fa-ghost"></i> Ghost Ping</h3>
+                <input type="text" id="ghost-ping-channel-id" placeholder="Kanal ID'si">
+                <input type="text" id="ghost-ping-user-id" placeholder="Kullanıcı ID'si">
+                <button id="ghost-ping-btn">Gönder</button>
+            </div>
+            <div class="card">
+                <h3><i class="fa-solid fa-keyboard"></i> Yazıyor...</h3>
+                <input type="text" id="typing-channel-id" placeholder="Kanal ID'si">
+                <button id="start-typing-btn">Başlat</button>
+                <button id="stop-typing-btn">Durdur</button>
+            </div>
+        </section>
+    </template>
+
+    <template id="account-template">
+        <section id="account" class="content-section">
+            <div class="card">
+                <h3><i class="fa-solid fa-user-shield"></i> Hesap Yönetimi</h3>
+                <input type="password" id="new-token" placeholder="Yeni Discord Token">
+                <button id="switch-account-btn">Hesap Değiştir</button>
+            </div>
+        </section>
+    </template>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                    </html>
-    
+    </html>
+                
