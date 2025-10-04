@@ -416,20 +416,16 @@ io.on('connection', (socket) => {
     
     socket.on('start-typing', async (channelId) => {
         try {
-            const channel = await client.channels.fetch(channelId);
-            if (!activeTypingChannels.has(channelId)) {
-                await channel.startTyping();
-                activeTypingChannels.add(channelId);
-                socket.emit('status-update', { message: `'Yazıyor...' durumu başlatıldı.`, type: 'info' });
-            }
-        } catch (e) {
-            console.error("'Yazıyor...' Başlatma Hatası:", e.message);
-            socket.emit('status-update', { message: `'Yazıyor...' durumu durduruldu.`, type: 'info' });
-            }
-        } catch (e) {
-            console.error("'Yazıyor...' Durdurma Hatası:", e.message);
+        const channel = await client.channels.fetch(channelId);
+        if (!activeTypingChannels.has(channelId)) {
+            await channel.startTyping();
+            activeTypingChannels.add(channelId);
+            socket.emit('status-update', { message: `'Yazıyor...' durumu başlatıldı.`, type: 'info' });
         }
-    });
+    } catch (e) {
+        console.error("'Yazıyor...' Başlatma Hatası:", e.message);
+        socket.emit('status-update', { message: `'Yazıyor...' durumu durduruldu.`, type: 'info' });
+        }
 
     socket.on('clean-dm', async (data) => {
         try {
@@ -525,3 +521,4 @@ console.log(`${cyan}============================================================
 server.listen(3000, () => {
     console.log(`${magenta}Sunucu ${cyan}http://localhost:3000${magenta} portunda başarıyla başlatıldı.${reset}`);
 });
+
