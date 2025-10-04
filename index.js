@@ -43,11 +43,8 @@ function login(token) {
             tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
             id: client.user.id,
-            status: client.presence?.status || 'online' // Add status to emit
         });
         io.emit('status-update', { message: 'Başarıyla giriş yapıldı!', type: 'success' });
-        // Emit current streaming status on ready
-        io.emit('stream-status-change', { type: currentStreamInfo.type, isActive: currentStreamInfo.type !== null });
     });
     
     client.on('messageCreate', async msg => {
@@ -120,7 +117,7 @@ function login(token) {
                         await msg.edit('Eksik argüman. Örn: `.ghostping <KanalID> <KullanıcıID>`');
                         return;
                     }
-                    await msg.delete(); // Ghost pingde komut görünmemeli.
+                    await msg.delete();
                     const channel = await client.channels.fetch(ghostChannelId);
                     const pingMsg = await channel.send(`<@${ghostUserId}>`);
                     await pingMsg.delete();
@@ -130,7 +127,6 @@ function login(token) {
                     const typingChannelId = args.shift();
                     if (!typingChannelId) return msg.edit('Lütfen bir kanal ID belirtin.');
                     const typingChannel = await client.channels.fetch(typingChannelId);
-                    // Fix: Add check for text channel
                     if (!typingChannel || !typingChannel.isText()) {
                         await msg.edit('Belirtilen kanal bir metin kanalı değil.');
                         return;
@@ -169,12 +165,12 @@ function login(token) {
                         await msg.edit('Lütfen bir emoji belirtin.');
                         return;
                     }
-                    await msg.delete(); // Bu komutun kendisi görünmemeli.
+                    await msg.delete();
                     const messages = await msg.channel.messages.fetch({ limit: limit });
                     for (const message of messages.values()) {
                         try {
                             await message.react(emoji);
-                            await new Promise(resolve => setTimeout(resolve, 400)); // Rate limit için bekle
+                            await new Promise(resolve => setTimeout(resolve, 400));
                         } catch (e) { /* Hataları yoksay */ }
                     }
                     break;
@@ -205,7 +201,11 @@ function login(token) {
     });
 }
 
-app.use(express.static(path.join(__dirname, 'public')));
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+app.get('*', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+});
 
 io.on('connection', (socket) => {
     console.log('Web arayüzüne bir kullanıcı bağlandı.');
@@ -215,10 +215,7 @@ io.on('connection', (socket) => {
             tag: client.user.tag,
             avatar: client.user.displayAvatarURL(),
             id: client.user.id,
-            status: client.presence?.status || 'online'
         });
-        // Emit current streaming status for new connections
-        socket.emit('stream-status-change', { type: currentStreamInfo.type, isActive: currentStreamInfo.type !== null });
     }
 
     const stopStreaming = async (source = 'user') => {
@@ -227,21 +224,19 @@ io.on('connection', (socket) => {
             audioPlayer = null;
         }
         if (currentVoiceConnection) {
-            currentVoiceConnection.removeAllListeners();
             currentVoiceConnection.destroy();
             currentVoiceConnection = null;
         }
         try {
             if (client && client.user) {
-                // Fix: Use client.user.setSelfStream and client.user.setSelfVideo
-                if (client.user.setSelfStream) await client.user.setSelfStream(false).catch(() => {});
-                if (client.user.setSelfVideo) await client.user.setSelfVideo(false).catch(() => {});
+                if (currentStreamInfo.type === 'camera') await client.user.setSelfVideo(false).catch(() => {});
+                else await client.user.setSelfStream(false).catch(() => {});
             }
         } catch (error) {
             console.error("Yayın durumu temizlenirken hata oluştu:", error.message);
         }
         if (source === 'user') {
-            socket.emit('status-update', { message: 'Yayın durduruldu.', type: 'info' });
+            io.emit('status-update', { message: 'Yayın durduruldu.', type: 'info' });
         }
         currentStreamInfo = { type: null, channelId: null, guildId: null };
         io.emit('stream-status-change', { type: 'camera', isActive: false });
@@ -249,7 +244,7 @@ io.on('connection', (socket) => {
     };
 
     const startStreaming = async (channelId, isCamera) => {
-        if (getVoiceConnection(channelId)) await stopStreaming('internal');
+        if (currentVoiceConnection) await stopStreaming('internal');
         
         await new Promise(resolve => setTimeout(resolve, 500));
         
@@ -259,91 +254,67 @@ io.on('connection', (socket) => {
 
             currentStreamInfo = { type: isCamera ? 'camera' : 'stream', channelId: channel.id, guildId: channel.guild.id };
 
-            let videoSourceUrl;
-            if (isCamera) {
-                videoSourceUrl = config.cameraVideoUrl;
-            } else {
-                if (videoList.length === 0) throw new Error("'videos.json' dosyanız boş.");
-                videoSourceUrl = videoList[Math.floor(Math.random() * videoList.length)];
-            }
+            let videoSourceUrl = isCamera 
+                ? config.cameraVideoUrl 
+                : videoList[Math.floor(Math.random() * videoList.length)];
             
             if (!videoSourceUrl) throw new Error('Yayın için geçerli bir URL bulunamadı.');
-
             console.log(`Yayın başlatılıyor: ${videoSourceUrl}`);
             
-            let streamSource;
-            let streamType;
+            let stream;
+            let type;
             
-            const validatedType = await playdl.validate(videoSourceUrl);
-
-            if (validatedType === 'yt_video') {
-                // Fix: Use playdl.stream() for simpler and more robust YouTube streaming
-                const streamDetails = await playdl.stream(videoSourceUrl, { discordPlayerCompatibility: true });
-                streamSource = streamDetails.stream;
-                streamType = streamDetails.type;
+            if ((await playdl.validate(videoSourceUrl)) === 'yt_video') {
+                const streamDetails = await playdl.stream(videoSourceUrl);
+                stream = streamDetails.stream;
+                type = streamDetails.type;
             } else {
-                // GIF gibi doğrudan linkler için
-                const { default: fetch } = await import('node-fetch');
-                const response = await fetch(videoSourceUrl);
-                if (!response.ok) throw new Error(`URL'den akış alınamadı: ${response.statusText}`);
-                streamSource = response.body;
-                streamType = StreamType.Arbitrary;
+                stream = videoSourceUrl;
+                type = StreamType.Arbitrary;
             }
 
-            currentVoiceConnection = joinVoiceChannel({
+            const connection = joinVoiceChannel({
                 channelId: channel.id,
                 guildId: channel.guild.id,
                 adapterCreator: channel.guild.voiceAdapterCreator,
                 selfDeaf: false,
                 selfMute: false,
-                // Add selfVideo/selfStream directly in joinVoiceChannel options for initial state
-                selfVideo: isCamera,
-                selfStream: !isCamera
             });
+            currentVoiceConnection = connection;
             
-            currentVoiceConnection.on(VoiceConnectionStatus.Disconnected, async () => {
+            await entersState(connection, VoiceConnectionStatus.Ready, 20000);
+            
+            if (isCamera) await client.user.setSelfVideo(true);
+            else await client.user.setSelfStream(true);
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            audioPlayer = createAudioPlayer();
+            const resource = createAudioResource(stream, { inputType: type });
+            
+            audioPlayer.play(resource);
+            connection.subscribe(audioPlayer);
+
+            audioPlayer.on(AudioPlayerStatus.Idle, () => startStreaming(channelId, isCamera));
+            audioPlayer.on('error', error => {
+                console.error(`Audio Player Hatası: ${error.message}, yayın yeniden başlatılıyor...`);
+                startStreaming(channelId, isCamera);
+            });
+
+            io.emit('status-update', { message: `${isCamera ? 'Kamera modu' : 'Yayın'} başlatıldı.`, type: 'success' });
+            io.emit('stream-status-change', { type: currentStreamInfo.type, isActive: true });
+
+            connection.on(VoiceConnectionStatus.Disconnected, async () => {
                 try {
                     await Promise.race([
-                        entersState(currentVoiceConnection, VoiceConnectionStatus.Signalling, 5000),
-                        entersState(currentVoiceConnection, VoiceConnectionStatus.Connecting, 5000),
+                        entersState(connection, VoiceConnectionStatus.Signalling, 5000),
+                        entersState(connection, VoiceConnectionStatus.Connecting, 5000),
                     ]);
                 } catch (error) {
-                    console.log("Bağlantı koptu, temizleniyor.");
                     stopStreaming('internal-disconnect');
                 }
             });
 
-            await entersState(currentVoiceConnection, VoiceConnectionStatus.Ready, 20000);
-
-            // Optional: If you need to *explicitly* ensure the stream/video is on *after* connection ready:
-            if (client && client.user) {
-                if (isCamera && client.user.setSelfVideo) await client.user.setSelfVideo(true).catch(e => console.error("setSelfVideo after join failed:", e.message));
-                else if (!isCamera && client.user.setSelfStream) await client.user.setSelfStream(true).catch(e => console.error("setSelfStream after join failed:", e.message));
-            }
-
-
-            audioPlayer = createAudioPlayer();
-            const resource = createAudioResource(streamSource, { inputType: streamType });
-            
-            audioPlayer.play(resource);
-            currentVoiceConnection.subscribe(audioPlayer);
-
-            audioPlayer.on(AudioPlayerStatus.Idle, () => {
-                console.log("Yayın bitti, yenisi başlatılıyor...");
-                if (currentStreamInfo.channelId) {
-                    startStreaming(currentStreamInfo.channelId, currentStreamInfo.type === 'camera');
-                }
-            });
-            audioPlayer.on('error', error => {
-                console.error(`Audio Player Hatası: ${error.message}, yayın yeniden başlatılıyor...`);
-                 if (currentStreamInfo.channelId) {
-                    startStreaming(currentStreamInfo.channelId, currentStreamInfo.type === 'camera');
-                }
-            });
-
-            io.emit('status-update', { message: `${isCamera ? 'Kamera modu' : 'Yayın'} başlatıldı.`, type: 'success' });
-            io.emit('stream-status-change', { type: isCamera ? 'camera' : 'stream', isActive: true });
-            
         } catch (error) {
             console.error("Yayın başlatma hatası:", error);
             io.emit('status-update', { message: `Yayın başlatılamadı: ${error.message}`, type: 'error' });
@@ -363,7 +334,7 @@ io.on('connection', (socket) => {
         try {
             await client.user.setAvatar(url);
             socket.emit('status-update', { message: 'Profil fotoğrafı güncellendi.', type: 'success' });
-            socket.emit('bot-info', { avatar: client.user.displayAvatarURL(), status: client.presence?.status || 'online' }); // Update avatar and status
+            socket.emit('bot-info', { avatar: client.user.displayAvatarURL() });
         } catch (e) {
             socket.emit('status-update', { message: 'Avatar değiştirilemedi: ' + e.message, type: 'error' });
         }
@@ -381,7 +352,6 @@ io.on('connection', (socket) => {
             }
             await client.user.setPresence({ activities: data.activityName ? [activity] : [] });
             socket.emit('status-update', { message: 'Durum güncellendi.', type: 'success' });
-            socket.emit('bot-info', { status: client.presence?.status || 'online' }); // Update status
         } catch (e) {
             socket.emit('status-update', { message: 'Durum değiştirilemedi: ' + e.message, type: 'error' });
         }
@@ -412,10 +382,9 @@ io.on('connection', (socket) => {
     socket.on('start-typing', async (channelId) => {
         try {
             const channel = await client.channels.fetch(channelId);
-            // Fix: Add check for text channel
-            if (!channel || !channel.isText()) {
-                socket.emit('status-update', { message: "Yazıyor durumu başlatılamadı: Belirtilen kanal bir metin kanalı değil.", type: 'error' });
-                return;
+            if (!channel.isText()) {
+                 socket.emit('status-update', { message: "'Yazıyor...' durumu başlatılamadı: Metin kanalı değil.", type: 'error' });
+                 return;
             }
             if (!activeTypingChannels.has(channelId)) {
                 await channel.startTyping();
@@ -424,18 +393,14 @@ io.on('connection', (socket) => {
             }
         } catch (e) {
             console.error("'Yazıyor...' Başlatma Hatası:", e.message);
-            socket.emit('status-update', { message: "'Yazıyor...' durumu başlatılamadı: " + e.message, type: 'error' });
+            socket.emit('status-update', { message: "'Yazıyor...' durumu başlatılamadı.", type: 'error' });
         }
     });
 
     socket.on('stop-typing', async (channelId) => {
         try {
             const channel = await client.channels.fetch(channelId);
-            // Fix: Add check for text channel
-            if (!channel || !channel.isText()) {
-                // Not a text channel, nothing to stop
-                return;
-            }
+             if (!channel.isText()) return;
             if (activeTypingChannels.has(channelId)) {
                 channel.stopTyping(true);
                 activeTypingChannels.delete(channelId);
@@ -472,7 +437,6 @@ io.on('connection', (socket) => {
                 }
                 
                 if (messages.size < 100) break;
-                if (messages.size === 0) break; // If no messages, break
                 lastId = messages.last().id;
             }
 
@@ -487,10 +451,8 @@ io.on('connection', (socket) => {
         if (spamInterval) {
             clearInterval(spamInterval);
             spamInterval = null;
-            if (spammerClient) {
-                spammerClient.destroy();
-                spammerClient = null;
-            }
+            if (spammerClient) spammerClient.destroy();
+            spammerClient = null;
             socket.emit('spam-status-change', false);
             socket.emit('status-update', { message: 'Spam durduruldu.', type: 'info' });
             return;
@@ -503,16 +465,13 @@ io.on('connection', (socket) => {
             socket.emit('status-update', { message: 'Spam başlatıldı!', type: 'success' });
             const msg = data.ping ? `<@${data.userId}> ${data.message}` : data.message;
             spamInterval = setInterval(() => {
-                user.send(msg).catch((e) => { // Catch error here too
-                    console.error("Spam gönderme hatası:", e.message);
+                user.send(msg).catch(() => {
                     clearInterval(spamInterval);
                     spamInterval = null;
-                    if (spammerClient) {
-                        spammerClient.destroy();
-                        spammerClient = null;
-                    }
+                    if (spammerClient) spammerClient.destroy();
+                    spammerClient = null;
                     socket.emit('spam-status-change', false);
-                    socket.emit('status-update', { message: 'Spam durduruldu (hedef engellemiş olabilir veya hata oluştu).', type: 'error' });
+                    socket.emit('status-update', { message: 'Spam durduruldu (hedef engellemiş olabilir).', type: 'error' });
                 });
             }, 1500);
         } catch (e) {
@@ -520,34 +479,11 @@ io.on('connection', (socket) => {
             socket.emit('spam-status-change', false);
         }
     });
-
-    // Add a 'start-bot' event for the UI button
-    socket.on('start-bot', () => { // No token needed here, uses config.token
-        login(config.token);
-    });
 });
 
 login(config.token);
 
-const magenta = '\u001b[35m';
-const cyan = '\u001b[36m';
-const reset = '\u001b[0m';
-
-const asciiArt = `
-${magenta}  ██████╗ ███████╗  █████╗ ██╗     ██╗  ██╗   ██╗██████╗  █████╗ ██╗  ██╗
-${magenta}  ██╔══██╗██╔════╝ ██╔══██╗██║     ██║  ╚██╗ ██╔╝██╔══██╗██╔══██╗╚██╗██╔╝
-${cyan}  ██████╔╝█████╗   ███████║██║     ██║   ╚████╔╝ ██████╔╝███████║ ╚███╔╝ 
-${cyan}  ██╔══██╗██╔══╝   ██╔══██║██║     ██║    ╚██╔╝  ██╔══██╗██╔══██║ ██╔██╗ 
-${magenta}  ██║  ██║███████╗ ██║  ██║███████╗███████╗   ██║   ██║  ██║  ██║██║  ██║
-${magenta}  ╚═╝  ╚═╝╚══════╝ ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝  ╚═╝╚═╝  ╚═╝
-`;
-
-console.log(asciiArt);
-console.log(`${cyan}======================================================================${reset}`);
-console.log(`${magenta}                          Sunucu başlatılıyor...                        ${reset}`);
-console.log(`${cyan}======================================================================${reset}`);
-
-
-server.listen(3000, () => {
-    console.log(`${magenta}Sunucu ${cyan}http://localhost:3000${magenta} portunda başarıyla başlatıldı.${reset}`);
+const port = 3000;
+server.listen(port, () => {
+    console.log(`Sunucu http://localhost:${port} portunda başarıyla başlatıldı.`);
 });
