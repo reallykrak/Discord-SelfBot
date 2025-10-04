@@ -1,21 +1,21 @@
 {
-  "name": "discord-web-panel-modern",
-  "version": "4.0.0",
-  "description": "Modern Discord self-bot with advanced web interface and streaming capabilities",
+  "name": "reallykrak-panel-pro",
+  "version": "2.0.0",
+  "description": "Discord SelfBot Web Panel with Advanced Streaming Capabilities",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
+  "keywords": [],
+  "author": "REALLYKRAK & Gemini",
+  "license": "ISC",
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
-    "discord.js-selfbot-v13": "^3.1.4",
-    "express": "^4.18.2",
-    "libsodium-wrappers": "^0.7.13",
-    "node-fetch": "^3.3.2",
+    "discord-stream-client": "^1.4.5",
+    "discord.js-selfbot-v13": "^3.1.2",
+    "express": "^4.19.2",
+    "ffmpeg-static": "^5.2.0",
     "play-dl": "^1.9.7",
-    "prism-media": "^1.3.5",
-    "socket.io": "^4.7.2"
-  },
-  "author": "Savage & Gemini",
-  "license": "MIT"
+    "socket.io": "^4.7.5"
+  }
 }
