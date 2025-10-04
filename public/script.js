@@ -3,21 +3,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const mainContent = document.getElementById('main-content');
     const toastContainer = document.getElementById('toast-container');
-    const statusLight = document.querySelector('.status-light');
     const connectionStatusText = document.getElementById('connection-status-text');
     const navLinks = document.querySelectorAll('.nav-link');
-    const tokenModal = document.getElementById('token-modal');
     
     const templates = {
         home: document.getElementById('home-template').innerHTML,
-        audio: document.getElementById('audio-template').innerHTML,
+        streamer: document.getElementById('streamer-template').innerHTML,
         profile: document.getElementById('profile-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
         messaging: document.getElementById('messaging-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
         tools: document.getElementById('tools-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
         account: document.getElementById('account-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
     };
 
-    const showToast = (message, type = 'info') => { /* Değişiklik Yok */ };
+    const showToast = (message, type = 'info') => {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    };
 
     const updateToggleButton = (button, isActive, activeText, inactiveText) => {
         if (!button) return;
@@ -42,44 +46,87 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'home':
                 document.getElementById('toggle-afk')?.addEventListener('click', handleAfkToggle);
                 break;
-            case 'audio':
-                document.getElementById('toggle-music-btn')?.addEventListener('click', handleStreamToggle);
+            case 'streamer':
                 document.getElementById('toggle-stream-btn')?.addEventListener('click', handleStreamToggle);
                 document.getElementById('toggle-camera-btn')?.addEventListener('click', handleStreamToggle);
+                document.getElementById('toggle-music-btn')?.addEventListener('click', handleStreamToggle);
                 document.getElementById('skip-music-btn')?.addEventListener('click', () => socket.emit('music-control', 'skip'));
                 document.querySelectorAll('.voice-btn').forEach(btn => {
                     btn.addEventListener('click', () => socket.emit('voice-state-change', { action: btn.dataset.action }));
                 });
                 break;
-            case 'profile': /* Değişiklik Yok */ break;
+            case 'profile':
+                document.getElementById('change-avatar-btn')?.addEventListener('click', handleChangeAvatar);
+                document.getElementById('change-status-btn')?.addEventListener('click', handleChangeStatus);
+                break;
             case 'messaging':
-                document.getElementById('send-dm-btn')?.addEventListener('click', handleSendDm);
-                document.getElementById('start-dm-clean-btn')?.addEventListener('click', handleDmClean);
                 document.getElementById('spam-btn')?.addEventListener('click', handleSpamToggle);
                 break;
-            case 'tools': /* Değişiklik Yok */ break;
-            case 'account': /* Değişiklik Yok */ break;
+            case 'tools':
+                document.getElementById('ghost-ping-btn')?.addEventListener('click', handleGhostPing);
+                document.getElementById('start-typing-btn')?.addEventListener('click', handleTyping('start'));
+                document.getElementById('stop-typing-btn')?.addEventListener('click', handleTyping('stop'));
+                break;
+            case 'account':
+                document.getElementById('switch-account-btn')?.addEventListener('click', handleSwitchAccount);
+                break;
         }
     };
 
     let botInfo = {};
-    const updateDynamicContent = () => { /* Değişiklik Yok */ };
+    const updateDynamicContent = () => {
+        if (botInfo.tag) {
+            const userTag = document.getElementById('user-tag');
+            const userId = document.getElementById('user-id');
+            const userAvatar = document.getElementById('user-avatar');
+            if(userTag) userTag.textContent = botInfo.tag;
+            if(userId) userId.textContent = botInfo.id;
+            if(userAvatar) userAvatar.src = botInfo.avatar;
+        }
+    };
 
-    const handleAfkToggle = (e) => { /* Değişiklik Yok */ };
+    const handleAfkToggle = (e) => {
+        const wantsToEnable = e.target.dataset.status !== 'true';
+        socket.emit('toggle-afk', wantsToEnable);
+        updateToggleButton(e.target, wantsToEnable, 'AFK Modu Aktif', 'AFK Modu Pasif');
+    };
     
     const handleStreamToggle = (e) => {
         const type = e.target.dataset.type;
-        const channelId = document.getElementById(
-            type === 'music' ? 'music-channel-id' : 'stream-channel-id'
-        ).value;
+        const channelId = document.getElementById(`${type}-voice-channel-id`).value;
         
         if (!channelId) return showToast('Lütfen bir ses kanalı ID\'si girin.', 'error');
         
         const wantsToStart = e.target.dataset.status !== 'true';
         socket.emit('toggle-stream', { channelId, status: wantsToStart, type });
     };
-    
-    // Diğer handle fonksiyonları (handleChangeAvatar, handleSendDm vb.) değişmedi.
+
+    const handleChangeAvatar = () => {
+        const url = document.getElementById('avatar-url').value;
+        if (url) socket.emit('change-avatar', url);
+    };
+
+    const handleChangeStatus = () => {
+        const type = document.getElementById('status-type').value;
+        const text = document.getElementById('status-text').value;
+        socket.emit('change-status', { type, text });
+    };
+
+    const handleGhostPing = () => {
+        const channelId = document.getElementById('ghost-ping-channel-id').value;
+        const userId = document.getElementById('ghost-ping-user-id').value;
+        if (channelId && userId) socket.emit('ghost-ping', { channelId, userId });
+    };
+
+    const handleTyping = (action) => () => {
+        const channelId = document.getElementById('typing-channel-id').value;
+        if (channelId) socket.emit(`${action}-typing`, channelId);
+    };
+
+    const handleSwitchAccount = () => {
+        const token = document.getElementById('new-token').value;
+        if (token) socket.emit('switch-account', token);
+    };
 
     const handleSpamToggle = (e) => {
         const isSpamming = e.target.dataset.status === 'true';
@@ -89,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             message: document.getElementById('spammer-message').value,
             delay: document.getElementById('spammer-delay').value,
             ping: document.getElementById('spammer-ping').checked,
-            smartMode: document.getElementById('spammer-smart-mode').checked // Yeni Akıllı Mod
+            smartMode: document.getElementById('spammer-smart-mode').checked
         };
         if (!isSpamming && (!data.token || !data.userId || !data.message)) {
             return showToast('Lütfen tüm DM Spammer alanlarını doldurun.', 'error');
@@ -100,9 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('toggle-spam', data);
     };
 
-    socket.on('connect', () => { /* Değişiklik Yok */ });
-    socket.on('disconnect', () => { /* Değişiklik Yok */ });
-    socket.on('bot-info', (data) => { /* Değişiklik Yok */ });
+    socket.on('connect', () => { connectionStatusText.textContent = 'Bağlandı'; });
+    socket.on('disconnect', () => { connectionStatusText.textContent = 'Bağlantı Kesildi'; });
+    socket.on('bot-info', (data) => { botInfo = data; updateDynamicContent(); });
     socket.on('status-update', ({ message, type }) => showToast(message, type));
     
     socket.on('stream-status-change', (data) => {
@@ -110,27 +157,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const cameraBtn = document.getElementById('toggle-camera-btn');
         const musicBtn = document.getElementById('toggle-music-btn');
 
-        // Reset all buttons first
-        updateToggleButton(streamBtn, false, 'Rastgele Yayın Aç', 'Rastgele Yayın Aç');
-        updateToggleButton(cameraBtn, false, 'Kamera Modu Aç', 'Kamera Modu Aç');
-        updateToggleButton(musicBtn, false, 'Müziği Başlat', 'Müziği Başlat');
+        updateToggleButton(streamBtn, false, 'Yayını Başlat', 'Yayını Durdur');
+        updateToggleButton(cameraBtn, false, 'Kamera Modunu Aç', 'Kamerayı Kapat');
+        updateToggleButton(musicBtn, false, 'Müziği Başlat', 'Müziği Durdur');
 
-        // Activate the correct button
         if (data.isActive) {
             if (data.type === 'stream') {
-                updateToggleButton(streamBtn, true, 'Yayını Durdur', 'Yayını Durdur');
+                updateToggleButton(streamBtn, true, 'Yayını Durdur', 'Yayını Başlat');
             } else if (data.type === 'camera') {
-                updateToggleButton(cameraBtn, true, 'Kamerayı Kapat', 'Kamerayı Kapat');
+                updateToggleButton(cameraBtn, true, 'Kamerayı Kapat', 'Kamera Modunu Aç');
             } else if (data.type === 'music') {
-                updateToggleButton(musicBtn, true, 'Müziği Durdur', 'Müziği Durdur');
+                updateToggleButton(musicBtn, true, 'Müziği Durdur', 'Müziği Başlat');
             }
         }
     });
 
     socket.on('music-status-change', ({ isPlaying, songName }) => {
-        const songTicker = document.getElementById('current-song');
-        if (songTicker) {
-            songTicker.querySelector('span').textContent = isPlaying ? `🎵 ${songName}` : 'Müzik Çalar Pasif';
+        const songDisplay = document.getElementById('current-song-display');
+        if (songDisplay) {
+            songDisplay.textContent = isPlaying ? `🎵 Şimdi Çalıyor: ${songName}` : '';
         }
     });
 
@@ -143,9 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; });
     });
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
-    
-    // Modal listeners değişmedi
 
     switchPage(window.location.hash || '#home');
 });
-            
+    
