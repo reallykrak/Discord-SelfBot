@@ -521,4 +521,3 @@ console.log(`${cyan}============================================================
 server.listen(3000, () => {
     console.log(`${magenta}Sunucu ${cyan}http://localhost:3000${magenta} portunda başarıyla başlatıldı.${reset}`);
 });
-
