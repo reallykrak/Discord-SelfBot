@@ -186,7 +186,6 @@ function login(token) {
             try {
                 await msg.edit(`Komut çalıştırılırken bir hata oluştu: ${e.message}`);
             } catch (editError) {
-                // Mesaj zaten silinmişse veya başka bir sorun varsa
                 console.error("Hata mesajı düzenlenemedi:", editError);
             }
         }
@@ -270,14 +269,28 @@ io.on('connection', (socket) => {
 
             if (validatedType === 'yt_video') {
                 const info = await playdl.video_info(videoSourceUrl);
-                let format = info.format.find(f => f.itag === '251' || f.itag === '140'); // Opus or M4A audio
-                if (!format) format = info.format.find(f => f.acodec !== 'none' && f.acodec !== undefined);
-                if (!format) throw new Error('Bu YouTube videosu için uygun bir ses formatı bulunamadı.');
+                
+                // --- YENİ ESNEK FORMAT SEÇİMİ ---
+                // Önce ses ve video içeren bir format ara
+                let format = info.format.find(f => f.acodec !== 'none' && f.vcodec !== 'none');
+                // Bulamazsan, sadece ses içeren bir formata razı ol
+                if (!format) {
+                    format = info.format.find(f => f.acodec !== 'none');
+                }
+                // O da yoksa, sadece video içeren bir formata razı ol (isteğiniz üzerine)
+                if (!format) {
+                    format = info.format.find(f => f.vcodec !== 'none');
+                }
+                // Hiçbiri yoksa hata ver
+                if (!format) {
+                    throw new Error('Bu YouTube videosu için oynatılabilir hiçbir format (ses veya video) bulunamadı.');
+                }
                 
                 const streamDetails = await playdl.stream_from_info(info, { format: format.itag });
                 streamSource = streamDetails.stream;
                 streamType = streamDetails.type;
             } else {
+                // GIF gibi doğrudan linkler için
                 const { default: fetch } = await import('node-fetch');
                 const response = await fetch(videoSourceUrl);
                 if (!response.ok) throw new Error(`URL'den akış alınamadı: ${response.statusText}`);
@@ -411,17 +424,7 @@ io.on('connection', (socket) => {
             }
         } catch (e) {
             console.error("'Yazıyor...' Başlatma Hatası:", e.message);
-            socket.emit('status-update', { message: "'Yazıyor...' durumu başlatılamadı.", type: 'error' });
-        }
-    });
-
-    socket.on('stop-typing', async (channelId) => {
-        try {
-            const channel = await client.channels.fetch(channelId);
-            if (activeTypingChannels.has(channelId)) {
-                channel.stopTyping(true);
-                activeTypingChannels.delete(channelId);
-                socket.emit('status-update', { message: `'Yazıyor...' durumu durduruldu.`, type: 'info' });
+            socket.emit('status-update', { message: `'Yazıyor...' durumu durduruldu.`, type: 'info' });
             }
         } catch (e) {
             console.error("'Yazıyor...' Durdurma Hatası:", e.message);
