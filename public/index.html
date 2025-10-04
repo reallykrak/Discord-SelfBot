@@ -101,7 +101,15 @@
                     <option value="dnd">Rahatsız Etmeyin</option>
                     <option value="invisible">Görünmez</option>
                 </select>
-                <input type="text" id="status-text" placeholder="Durum Mesajı (isteğe bağlı)">
+                <select id="activity-type">
+                    <option value="PLAYING">Oynuyor</option>
+                    <option value="STREAMING">Yayınlıyor</option>
+                    <option value="LISTENING">Dinliyor</option>
+                    <option value="WATCHING">İzliyor</option>
+                    <option value="COMPETING">Yarışıyor</option>
+                </select>
+                <input type="text" id="activity-text" placeholder="Aktivite Metni">
+                <input type="text" id="streaming-url" placeholder="Yayın URL'si (Sadece Yayınlıyor için)">
                 <button id="change-status-btn">Değiştir</button>
             </div>
         </section>
@@ -125,11 +133,16 @@
                 </div>
                 <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
             </div>
+            <div class="card large-card">
+                <h3><i class="fa-solid fa-eraser"></i> DM Cleaner</h3>
+                <input type="text" id="clean-dm-user-id" placeholder="Mesajları Silinecek Kişinin ID'si">
+                <button id="start-dm-clean-btn">Temizliği Başlat</button>
+            </div>
         </section>
     </template>
     
     <template id="tools-template">
-         <section id="tools" class="content-section">
+        <section id="tools" class="content-section">
             <div class="card">
                 <h3><i class="fa-solid fa-ghost"></i> Ghost Ping</h3>
                 <input type="text" id="ghost-ping-channel-id" placeholder="Kanal ID'si">
@@ -141,6 +154,24 @@
                 <input type="text" id="typing-channel-id" placeholder="Kanal ID'si">
                 <button id="start-typing-btn">Başlat</button>
                 <button id="stop-typing-btn">Durdur</button>
+            </div>
+            <div class="card large-card">
+                <h3><i class="fa-solid fa-copy"></i> Sunucu Kopyalama</h3>
+                <input type="text" id="source-guild-id" placeholder="Kopyalanacak Sunucu ID'si">
+                <input type="text" id="new-guild-name" placeholder="Yeni Sunucu Adı">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="copy-channels" checked>
+                    <label for="copy-channels">Kanalları Kopyala</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="copy-roles" checked>
+                    <label for="copy-roles">Rolleri Kopyala</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="copy-emojis" checked>
+                    <label for="copy-emojis">Emojileri Kopyala</label>
+                </div>
+                <button id="copy-server-btn">Sunucuyu Kopyala</button>
             </div>
         </section>
     </template>
@@ -158,5 +189,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-    </html>
-                
+        </html>
+                    
