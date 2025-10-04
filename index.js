@@ -1,3 +1,13 @@
+// ===== Termux Voice/Stream Fix =====
+try {
+    global.OpusScript = require("opusscript"); // Opus (ses codec) modülü
+    global.nacl = require("tweetnacl");        // Şifreleme modülü
+    console.log("[AudioFix] opusscript ve tweetnacl başarıyla yüklendi.");
+} catch (err) {
+    console.warn("[AudioFix] Ses modülleri yüklenemedi:", err.message);
+}
+// ===================================
+
 require('./polyfill.js');
 const { Client, ActivityType } = require("discord.js-selfbot-v13");
 const { DiscordStreamClient } = require("discord-stream-client");
@@ -310,3 +320,4 @@ server.listen(port, () => {
     console.log('Web arayüzüne erişmek için tarayıcınızı açın.');
 });
             
+
