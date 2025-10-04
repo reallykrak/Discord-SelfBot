@@ -1,7 +1,14 @@
 // ===== Termux Voice/Stream Fix =====
 try {
-    global.OpusScript = require("opusscript"); // Opus (ses codec) modülü
-    global.nacl = require("tweetnacl");        // Şifreleme modülü
+    const OpusScript = require("opusscript"); // Opus (ses codec) modülü
+    const nacl = require("tweetnacl");        // Şifreleme modülü
+    global.OpusScript = OpusScript;
+    global.nacl = nacl;
+
+    // prism-media Encoder’ı opusscript ile zorla oluştur
+    const { Encoder } = require('prism-media');
+    global.audioEncoder = new Encoder(48000, 2, { opus: OpusScript });
+
     console.log("[AudioFix] opusscript ve tweetnacl başarıyla yüklendi.");
 } catch (err) {
     console.warn("[AudioFix] Ses modülleri yüklenemedi:", err.message);
@@ -320,4 +327,5 @@ server.listen(port, () => {
     console.log('Web arayüzüne erişmek için tarayıcınızı açın.');
 });
             
+
 
