@@ -16,7 +16,7 @@
             </div>
             <ul id="nav-menu">
                 <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-house-user"></i> <span>Ana Sayfa</span></a></li>
-                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-video"></i> <span>Yayın Yönetimi</span></a></li>
+                <li class="nav-item"><a href="#voice" class="nav-link"><i class="fa-solid fa-music"></i> <span>Ses Yönetimi</span></a></li>
                 <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-user-pen"></i> <span>Profil Ayarları</span></a></li>
                 <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-paper-plane"></i> <span>Mesajlaşma</span></a></li>
                 <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-screwdriver-wrench"></i> <span>Araçlar</span></a></li>
@@ -50,26 +50,14 @@
         </section>
     </template>
     
-    <template id="streamer-template">
-         <section id="streamer" class="content-section">
-            <div class="card">
-                <h3><i class="fa-solid fa-satellite-dish"></i> Rastgele Yayın</h3>
-                <p>Aşağıdaki butona basarak `videos.json` listesinden rastgele bir video veya YouTube yayınını başlatabilirsiniz.</p>
-                <input type="text" id="stream-voice-channel-id" placeholder="Yayın Açılacak Ses Kanalı ID'si">
-                <button id="toggle-stream-btn" class="toggle-btn" data-type="stream" data-status="false">Yayını Başlat</button>
-            </div>
-             <div class="card">
-                <h3><i class="fa-solid fa-camera-retro"></i> Sabit Kamera Modu</h3>
-                <p>Bu mod, yapılandırma dosyasında belirtilen video/sesi arka planda oynatarak kameranız açıkmış gibi görünmenizi sağlar.</p>
-                <input type="text" id="camera-voice-channel-id" placeholder="Kameranın Açılacağı Ses Kanalı ID'si">
-                <button id="toggle-camera-btn" class="toggle-btn" data-type="camera" data-status="false">Kamera Modunu Aç</button>
-            </div>
+    <template id="voice-template">
+         <section id="voice" class="content-section">
             <div class="card">
                 <h3><i class="fa-solid fa-music"></i> Müzik Çalar</h3>
                 <p class="info">`./music` klasöründeki şarkıları ses kanalında sırayla çalar.</p>
                 <input type="text" id="music-voice-channel-id" placeholder="Müzik Çalınacak Ses Kanalı ID'si">
                 <div style="display: flex; gap: 10px;">
-                    <button id="toggle-music-btn" class="toggle-btn" data-type="music" data-status="false" style="flex-grow: 1;">Müziği Başlat</button>
+                    <button id="toggle-music-btn" class="toggle-btn" data-status="false" style="flex-grow: 1;">Müziği Başlat</button>
                     <button id="skip-music-btn" style="flex-basis: 100px;">Atla</button>
                 </div>
             </div>
@@ -189,5 +177,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-        </html>
-                    
+                                                                                                                                                  </html>
+                                                                               
