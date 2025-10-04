@@ -32,12 +32,11 @@ try {
     } else {
         console.log("'music' klasörü bulunamadı, müzik çalar özelliği pasif olacak.");
         fs.mkdirSync(musicDir);
-         console.log("'music' klasörü oluşturuldu. Lütfen .mp3 dosyalarınızı buraya ekleyin.");
+        console.log("'music' klasörü oluşturuldu. Lütfen .mp3 dosyalarınızı buraya ekleyin.");
     }
 } catch(e) {
     console.error("Müzik dosyaları okunurken hata:", e);
 }
-
 
 let videoList = [];
 try {
@@ -64,8 +63,6 @@ function login(token) {
         io.emit('status-update', { message: 'Başarıyla giriş yapıldı!', type: 'success' });
     });
     
-    // .help gibi komutları buradan sildim çünkü artık panel üzerinden yönetiliyor.
-    // İsterseniz .help komutunu ve diğerlerini geri ekleyebilirsiniz.
     client.on('messageCreate', async msg => {
         if(afkEnabled && msg.channel.type === 'DM' && msg.author.id !== client.user.id) {
             msg.channel.send(config.afkMessage).catch(console.error);
@@ -84,7 +81,6 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// --- YENİ MÜZİK ÇALAR FONKSİYONU ---
 const playNextSong = (channelId) => {
     if (musicQueue.length === 0) {
         io.emit('status-update', { message: 'Müzik kuyruğu boş.', type: 'warning' });
@@ -140,7 +136,6 @@ const stopStreaming = async (source = 'user') => {
     io.emit('music-status-change', { isPlaying: false, songName: 'Durduruldu' });
 };
 
-
 io.on('connection', (socket) => {
     console.log('Web arayüzüne bir kullanıcı bağlandı.');
     if (client.user) {
@@ -192,14 +187,13 @@ io.on('connection', (socket) => {
                 } catch (error) { stopStreaming('internal-disconnect'); }
             });
 
-            // --- STREAM TÜRÜNE GÖRE AKSİYON ---
             if (streamType === 'music') {
                 io.emit('stream-status-change', { type: 'music', isActive: true });
-                currentSongIndex = -1; // Baştan başla
+                currentSongIndex = -1;
                 playNextSong(channelId);
                 audioPlayer.on(AudioPlayerStatus.Idle, () => playNextSong(channelId));
 
-            } else { // Kamera veya Video Yayını
+            } else {
                 let isCamera = streamType === 'camera';
                 if (isCamera) await client.user.setSelfVideo(true);
                 else await client.user.setSelfStream(true);
@@ -222,7 +216,7 @@ io.on('connection', (socket) => {
                 const resource = createAudioResource(stream, { inputType: type });
                 audioPlayer.play(resource);
                 
-                audioPlayer.on(AudioPlayerStatus.Idle, () => startStreaming(channelId, streamType)); // Döngü için
+                audioPlayer.on(AudioPlayerStatus.Idle, () => startStreaming(channelId, streamType));
                 io.emit('status-update', { message: `${isCamera ? 'Kamera modu' : 'Yayın'} başlatıldı.`, type: 'success' });
                 io.emit('stream-status-change', { type: streamType, isActive: true });
             }
@@ -238,7 +232,6 @@ io.on('connection', (socket) => {
         else stopStreaming('user');
     });
 
-    // --- YENİ SES KONTROLÜ ---
     socket.on('voice-state-change', async ({ action }) => {
         try {
             if (!currentVoiceConnection || !currentStreamInfo.guildId) {
@@ -258,28 +251,144 @@ io.on('connection', (socket) => {
         }
     });
     
-    // --- YENİ MÜZİK KONTROLLERİ ---
     socket.on('music-control', (action) => {
         if (!audioPlayer || !currentVoiceConnection) {
             return socket.emit('status-update', { message: 'Müzik çalar aktif değil.', type: 'error' });
         }
         if (action === 'skip') {
-            audioPlayer.stop(); // Idle event'ını tetikleyerek sıradakine geçer
+            audioPlayer.stop();
             socket.emit('status-update', { message: 'Şarkı atlandı.', type: 'info' });
         }
     });
 
     socket.on('toggle-afk', (status) => { afkEnabled = status; });
     socket.on('switch-account', (token) => { stopStreaming('internal'); login(token); });
-    socket.on('change-avatar', async (url) => { /* Değişiklik yok */ });
-    socket.on('change-status', async (data) => { /* Değişiklik yok */ });
-    socket.on('send-dm', async (data) => { /* Değişiklik yok */ });
-    socket.on('ghost-ping', async (data) => { /* Değişiklik yok */ });
-    socket.on('start-typing', async (channelId) => { /* Değişiklik yok */ });
-    socket.on('stop-typing', async (channelId) => { /* Değişiklik yok */ });
-    socket.on('clean-dm', async (data) => { /* Değişiklik yok */ });
+    socket.on('change-avatar', async (url) => {
+        try {
+            await client.user.setAvatar(url);
+            socket.emit('status-update', { message: 'Avatar başarıyla değiştirildi.', type: 'success' });
+        } catch (error) {
+            socket.emit('status-update', { message: 'Avatar değiştirilemedi: ' + error.message, type: 'error' });
+        }
+    });
+    
+    socket.on('change-status', async (data) => {
+        try {
+            client.user.setPresence({
+                status: data.status,
+                activities: [
+                    {
+                        name: data.activity.name,
+                        type: data.activity.type,
+                        url: data.activity.url,
+                    },
+                ],
+            });
+            socket.emit('status-update', { message: 'Durum başarıyla değiştirildi.', type: 'success' });
+        } catch (error) {
+            socket.emit('status-update', { message: 'Durum değiştirilemedi: ' + error.message, type: 'error' });
+        }
+    });
 
-    // --- GÜNCELLENMİŞ SPAMMER ---
+    socket.on('ghost-ping', async (data) => {
+        try {
+            const channel = await client.channels.fetch(data.channelId);
+            const msg = await channel.send(`<@${data.userId}>`);
+            await msg.delete();
+            socket.emit('status-update', { message: 'Ghost ping gönderildi.', type: 'success' });
+        } catch (error) {
+            socket.emit('status-update', { message: 'Ghost ping gönderilemedi: ' + error.message, type: 'error' });
+        }
+    });
+
+    socket.on('start-typing', async (channelId) => {
+        try {
+            const channel = await client.channels.fetch(channelId);
+            channel.startTyping();
+            activeTypingChannels.add(channelId);
+            socket.emit('status-update', { message: 'Yazıyor durumu başlatıldı.', type: 'success' });
+        } catch (error) {
+            socket.emit('status-update', { message: 'Yazıyor durumu başlatılamadı: ' + error.message, type: 'error' });
+        }
+    });
+
+    socket.on('stop-typing', async (channelId) => {
+        try {
+            const channel = await client.channels.fetch(channelId);
+            channel.stopTyping(true);
+            activeTypingChannels.delete(channelId);
+            socket.emit('status-update', { message: 'Yazıyor durumu durduruldu.', type: 'success' });
+        } catch (error) {
+            socket.emit('status-update', { message: 'Yazıyor durumu durdurulamadı: ' + error.message, type: 'error' });
+        }
+    });
+
+    socket.on('clean-dm', async (data) => {
+        try {
+            const user = await client.users.fetch(data.userId);
+            const dmChannel = await user.createDM();
+            const messages = await dmChannel.messages.fetch({ limit: 100 });
+            const userMessages = messages.filter(m => m.author.id === client.user.id);
+            
+            let deletedCount = 0;
+            for (const message of userMessages.values()) {
+                await message.delete();
+                deletedCount++;
+            }
+            
+            console.log(`${deletedCount} adet mesaj silindi.`);
+            socket.emit('status-update', { message: `${deletedCount} adet mesaj silindi.`, type: 'success' });
+        } catch (error) {
+            console.error('DM temizlenirken hata:', error);
+            socket.emit('status-update', { message: 'DM temizlenemedi: ' + error.message, type: 'error' });
+        }
+    });
+
+    socket.on('copy-server', async (data) => {
+        try {
+            const sourceGuild = await client.guilds.fetch(data.sourceGuildId);
+            const newGuild = await client.guilds.create(data.newGuildName, {
+                icon: sourceGuild.iconURL(),
+            });
+
+            if (data.options.channels) {
+                const categories = sourceGuild.channels.cache.filter(c => c.type === 'GUILD_CATEGORY').sort((a, b) => a.position - b.position);
+                for (const category of categories.values()) {
+                    const newCategory = await newGuild.channels.create(category.name, { type: 'GUILD_CATEGORY' });
+                    const children = category.children.sort((a, b) => a.position - b.position);
+                    for (const channel of children.values()) {
+                        await newGuild.channels.create(channel.name, {
+                            type: channel.type,
+                            parent: newCategory,
+                        });
+                    }
+                }
+            }
+
+            if (data.options.roles) {
+                const roles = sourceGuild.roles.cache.filter(r => r.name !== '@everyone').sort((a, b) => b.position - a.position);
+                for (const role of roles.values()) {
+                    await newGuild.roles.create({
+                        name: role.name,
+                        color: role.color,
+                        permissions: role.permissions,
+                    });
+                }
+            }
+
+            if (data.options.emojis) {
+                for (const emoji of sourceGuild.emojis.cache.values()) {
+                    await newGuild.emojis.create(emoji.url, emoji.name);
+                }
+            }
+            
+            socket.emit('status-update', { message: 'Sunucu başarıyla kopyalandı.', type: 'success' });
+        } catch (error) {
+            console.error('Sunucu kopyalanırken hata:', error);
+            socket.emit('status-update', { message: 'Sunucu kopyalanamadı: ' + error.message, type: 'error' });
+        }
+    });
+
     socket.on('toggle-spam', async (data) => {
         if (spamTimeout) {
             clearTimeout(spamTimeout);
