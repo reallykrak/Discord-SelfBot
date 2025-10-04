@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const templates = {
         home: document.getElementById('home-template').innerHTML,
-        streamer: document.getElementById('streamer-template').innerHTML,
+        voice: document.getElementById('voice-template').innerHTML,
         profile: document.getElementById('profile-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
         messaging: document.getElementById('messaging-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
         tools: document.getElementById('tools-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
@@ -46,10 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'home':
                 document.getElementById('toggle-afk')?.addEventListener('click', handleAfkToggle);
                 break;
-            case 'streamer':
-                document.getElementById('toggle-stream-btn')?.addEventListener('click', handleStreamToggle);
-                document.getElementById('toggle-camera-btn')?.addEventListener('click', handleStreamToggle);
-                document.getElementById('toggle-music-btn')?.addEventListener('click', handleStreamToggle);
+            case 'voice':
+                document.getElementById('toggle-music-btn')?.addEventListener('click', handleMusicToggle);
                 document.getElementById('skip-music-btn')?.addEventListener('click', () => socket.emit('music-control', 'skip'));
                 document.querySelectorAll('.voice-btn').forEach(btn => {
                     btn.addEventListener('click', () => socket.emit('voice-state-change', { action: btn.dataset.action }));
@@ -93,14 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateToggleButton(e.target, wantsToEnable, 'AFK Modu Aktif', 'AFK Modu Pasif');
     };
     
-    const handleStreamToggle = (e) => {
-        const type = e.target.dataset.type;
-        const channelId = document.getElementById(`${type}-voice-channel-id`).value;
-        
+    const handleMusicToggle = (e) => {
+        const channelId = document.getElementById('music-voice-channel-id').value;
         if (!channelId) return showToast('Lütfen bir ses kanalı ID\'si girin.', 'error');
-        
         const wantsToStart = e.target.dataset.status !== 'true';
-        socket.emit('toggle-stream', { channelId, status: wantsToStart, type });
+        socket.emit('toggle-music', { channelId, status: wantsToStart });
     };
 
     const handleChangeAvatar = () => {
@@ -113,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const activityType = document.getElementById('activity-type').value;
         const activityText = document.getElementById('activity-text').value;
         const streamingUrl = document.getElementById('streaming-url').value;
-
         const data = {
             status,
             activity: {
@@ -122,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 url: streamingUrl,
             },
         };
-
         socket.emit('change-status', data);
     };
 
@@ -158,11 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.emit('copy-server', { 
                 sourceGuildId, 
                 newGuildName,
-                options: {
-                    channels: copyChannels,
-                    roles: copyRoles,
-                    emojis: copyEmojis,
-                }
+                options: { channels: copyChannels, roles: copyRoles, emojis: copyEmojis }
             });
         }
     };
@@ -191,27 +180,10 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('bot-info', (data) => { botInfo = data; updateDynamicContent(); });
     socket.on('status-update', ({ message, type }) => showToast(message, type));
     
-    socket.on('stream-status-change', (data) => {
-        const streamBtn = document.getElementById('toggle-stream-btn');
-        const cameraBtn = document.getElementById('toggle-camera-btn');
-        const musicBtn = document.getElementById('toggle-music-btn');
-
-        updateToggleButton(streamBtn, false, 'Yayını Başlat', 'Yayını Durdur');
-        updateToggleButton(cameraBtn, false, 'Kamera Modunu Aç', 'Kamerayı Kapat');
-        updateToggleButton(musicBtn, false, 'Müziği Başlat', 'Müziği Durdur');
-
-        if (data.isActive) {
-            if (data.type === 'stream') {
-                updateToggleButton(streamBtn, true, 'Yayını Durdur', 'Yayını Başlat');
-            } else if (data.type === 'camera') {
-                updateToggleButton(cameraBtn, true, 'Kamerayı Kapat', 'Kamera Modunu Aç');
-            } else if (data.type === 'music') {
-                updateToggleButton(musicBtn, true, 'Müziği Durdur', 'Müziği Başlat');
-            }
-        }
-    });
-
     socket.on('music-status-change', ({ isPlaying, songName }) => {
+        const musicBtn = document.getElementById('toggle-music-btn');
+        updateToggleButton(musicBtn, isPlaying, 'Müziği Durdur', 'Müziği Başlat');
+
         const songDisplay = document.getElementById('current-song-display');
         if (songDisplay) {
             songDisplay.textContent = isPlaying ? `🎵 Şimdi Çalıyor: ${songName}` : '';
@@ -230,4 +202,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     switchPage(window.location.hash || '#home');
 });
-        
+                    
