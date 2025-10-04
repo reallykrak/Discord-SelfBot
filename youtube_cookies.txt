@@ -1,0 +1,6 @@
+# Netscape HTTP Cookie File
+# This is a generated file!  Do not edit.
+
+# YouTube cookies buraya eklenecek
+# Tarayıcınızdan YouTube cookies'lerini export edin
+# Format: domain, flag, path, secure, expiration, name, value
