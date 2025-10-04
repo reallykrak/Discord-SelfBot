@@ -15,7 +15,7 @@
                 <h1>REALLYKRAK</h1>
             </div>
             <ul id="nav-menu">
-                <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-house-user"></i> <span>Ana Sayfa</span></a></li>
+                <li class="nav-item"><a href="#dashboard" class="nav-link active"><i class="fa-solid fa-house-user"></i> <span>Dashboard</span></a></li>
                 <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-video"></i> <span>Yayın Yönetimi</span></a></li>
                 <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-user-pen"></i> <span>Profil Ayarları</span></a></li>
                 <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-paper-plane"></i> <span>Mesajlaşma</span></a></li>
@@ -28,13 +28,68 @@
         </nav>
 
         <main id="main-content">
-            <section id="home" class="content-section active">
-                <div class="card welcome-card">
-                    <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
-                    <h2 id="user-tag">Yükleniyor...</h2>
-                    <p class="user-id-p">ID: <span id="user-id">...</span></p>
-                    <p>Kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
+            <div class="header-username">
+                <i class="fa-solid fa-user"></i>
+                <span id="top-right-username">Yükleniyor...</span>
+            </div>
+
+            <section id="dashboard" class="content-section active">
+                <div class="header-welcome">
+                    <h2 id="welcome-message">Hoş Geldin, <span id="user-tag-welcome">Yükleniyor...</span></h2>
+                    <p>Bugün neler olup bittiğine bir göz at.</p>
                 </div>
+                
+                <div class="important-news-card">
+                    <h4>Önemli Haberler</h4>
+                    <p>Devam eden bir sorun nedeniyle us-2'deki tüm kullanıcılar geçici olarak us-1'e taşınmıştır ve us-2 yakın gelecekte devre dışı bırakılmıştır. dashboard.ethone.cc için çerezlerinizi silip tekrar giriş yapın. Neden olduğumuz her türlü rahatsızlıktan dolayı özür dileriz. Etkilenenler için kesinti süresi aboneliğini uzatacağız.</p>
+                </div>
+
+                <div class="card discord-account-card">
+                    <div class="avatar-wrapper">
+                        <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
+                        <span id="user-status-indicator" class="status-indicator offline"></span>
+                    </div>
+                    <div class="user-info">
+                        <h2 id="discord-username">Yükleniyor...</h2>
+                        <p class="user-id-p">ID: <span id="user-id">...</span></p>
+                    </div>
+                    <button id="start-bot-button" class="start-button">Başlat</button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="card stat-card">
+                        <h4>Süre Sonu</h4>
+                        <p>yakında</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h4>Toplam Kullanıcı</h4>
+                        <p>2913</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h4>Çevrimiçi Kullanıcı</h4>
+                        <p>235</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h4>UID</h4>
+                        <p>2936</p>
+                    </div>
+                    <div class="card stat-card">
+                        <h4>Versiyon</h4>
+                        <p>4.1.1</p>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="card chart-card">
+                        <h3>Ethone Aktivitesi</h3>
+                        <p class="info">Grafik alanı yer tutucu</p>
+                    </div>
+                    <div class="card chart-card">
+                        <h3>Sunucu Yükü</h3>
+                        <div class="server-load-chart">59%</div>
+                    </div>
+                </div>
+
                  <div class="card">
                     <h3><i class="fa-solid fa-toggle-on"></i> Genel Kontroller</h3>
                     <label>AFK Modu (Size DM atanlara otomatik mesaj gönderir)</label>
@@ -166,5 +221,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-    </html>
-                                                       
+     </html>
+                        
