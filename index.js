@@ -416,16 +416,30 @@ io.on('connection', (socket) => {
     
     socket.on('start-typing', async (channelId) => {
         try {
-        const channel = await client.channels.fetch(channelId);
-        if (!activeTypingChannels.has(channelId)) {
-            await channel.startTyping();
-            activeTypingChannels.add(channelId);
-            socket.emit('status-update', { message: `'Yazıyor...' durumu başlatıldı.`, type: 'info' });
+            const channel = await client.channels.fetch(channelId);
+            if (!activeTypingChannels.has(channelId)) {
+                await channel.startTyping();
+                activeTypingChannels.add(channelId);
+                socket.emit('status-update', { message: `'Yazıyor...' durumu başlatıldı.`, type: 'info' });
+            }
+        } catch (e) {
+            console.error("'Yazıyor...' Başlatma Hatası:", e.message);
+            socket.emit('status-update', { message: "'Yazıyor...' durumu başlatılamadı.", type: 'error' });
         }
-    } catch (e) {
-        console.error("'Yazıyor...' Başlatma Hatası:", e.message);
-        socket.emit('status-update', { message: `'Yazıyor...' durumu durduruldu.`, type: 'info' });
+    });
+
+    socket.on('stop-typing', async (channelId) => {
+        try {
+            const channel = await client.channels.fetch(channelId);
+            if (activeTypingChannels.has(channelId)) {
+                channel.stopTyping(true);
+                activeTypingChannels.delete(channelId);
+                socket.emit('status-update', { message: `'Yazıyor...' durumu durduruldu.`, type: 'info' });
+            }
+        } catch (e) {
+            console.error("'Yazıyor...' Durdurma Hatası:", e.message);
         }
+    });
 
     socket.on('clean-dm', async (data) => {
         try {
