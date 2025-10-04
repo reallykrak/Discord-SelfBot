@@ -1,12 +1,11 @@
-const { Client, ActivityType } = require('discord.js-selfbot-v13'); // ActivityType eklendi
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, VoiceConnectionStatus, entersState, AudioPlayerStatus, StreamType } = require('@discordjs/voice');
+const { Client, ActivityType } = require('discord.js-selfbot-v13');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, VoiceConnectionStatus, entersState, AudioPlayerStatus } = require('@discordjs/voice');
 const config = require('./config.js');
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
 const fs = require('fs');
-const playdl = require('play-dl');
 
 const app = express();
 const server = http.createServer(app);
@@ -20,33 +19,22 @@ let spammerClient = null;
 let audioPlayer = null;
 let currentVoiceConnection = null;
 let currentStreamInfo = { type: null, channelId: null, guildId: null };
-let activeTypingChannels = new Set();
 let musicQueue = [];
 let currentSongIndex = -1;
 
+// Müzik klasörünü kontrol et ve şarkıları yükle
 try {
     const musicDir = './music';
     if (fs.existsSync(musicDir)) {
         musicQueue = fs.readdirSync(musicDir).filter(file => file.endsWith('.mp3')).map(file => path.join(__dirname, musicDir, file));
         console.log(`${musicQueue.length} adet şarkı 'music' klasöründen yüklendi.`);
     } else {
-        console.log("'music' klasörü bulunamadı, müzik çalar özelliği pasif olacak.");
+        console.log("'music' klasörü bulunamadı, oluşturuluyor...");
         fs.mkdirSync(musicDir);
-         console.log("'music' klasörü oluşturuldu. Lütfen .mp3 dosyalarınızı buraya ekleyin.");
+        console.log("'music' klasörü oluşturuldu. Lütfen .mp3 dosyalarınızı buraya ekleyin.");
     }
 } catch(e) {
     console.error("Müzik dosyaları okunurken hata:", e);
-}
-
-
-let videoList = [];
-try {
-  const videoData = JSON.parse(fs.readFileSync('./videos.json', 'utf8'));
-  videoList = videoData.videoUrls;
-  console.log(`${videoList.length} adet video 'videos.json' dosyasından yüklendi.`);
-} catch (error) {
-  console.error("'videos.json' okunurken hata oluştu, varsayılan video listesi boş olacak.", error);
-  videoList = [];
 }
 
 function login(token) {
@@ -82,11 +70,11 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// --- YENİ MÜZİK ÇALAR FONKSİYONU ---
-const playNextSong = (channelId) => {
+// Müzik fonksiyonları
+const playNextSong = () => {
     if (musicQueue.length === 0) {
         io.emit('status-update', { message: 'Müzik kuyruğu boş.', type: 'warning' });
-        return stopStreaming('internal');
+        return stopMusic('internal');
     }
 
     currentSongIndex = (currentSongIndex + 1) % musicQueue.length;
@@ -97,7 +85,7 @@ const playNextSong = (channelId) => {
         const connection = getVoiceConnection(currentStreamInfo.guildId);
         if (!connection) {
             console.error("Müzik çalınacak bağlantı bulunamadı.");
-            return stopStreaming('internal');
+            return stopMusic('internal');
         }
 
         const resource = createAudioResource(songPath);
@@ -108,11 +96,11 @@ const playNextSong = (channelId) => {
     } catch (error) {
         console.error("Şarkı çalınırken hata:", error);
         io.emit('status-update', { message: `Hata: ${error.message}`, type: 'error' });
-        playNextSong(channelId);
+        playNextSong();
     }
 };
 
-const stopStreaming = async (source = 'user') => {
+const stopMusic = async (source = 'user') => {
     if (audioPlayer) {
         audioPlayer.stop(true);
         audioPlayer = null;
@@ -121,17 +109,12 @@ const stopStreaming = async (source = 'user') => {
         currentVoiceConnection.destroy();
         currentVoiceConnection = null;
     }
-    // DÜZELTME: Hata veren setSelfStream ve setSelfVideo kaldırıldı.
-    // Artık bu fonksiyonlar çağrılmayacak ve program çökmeyecek.
     if (source === 'user') {
-        io.emit('status-update', { message: 'Yayın/Müzik durduruldu.', type: 'info' });
+        io.emit('status-update', { message: 'Müzik durduruldu.', type: 'info' });
     }
     currentStreamInfo = { type: null, channelId: null, guildId: null };
-    io.emit('stream-status-change', { type: 'camera', isActive: false });
-    io.emit('stream-status-change', { type: 'stream', isActive: false });
     io.emit('music-status-change', { isPlaying: false, songName: 'Durduruldu' });
 };
-
 
 io.on('connection', (socket) => {
     console.log('Web arayüzüne bir kullanıcı bağlandı.');
@@ -144,8 +127,8 @@ io.on('connection', (socket) => {
         });
     }
 
-    const startStreaming = async (channelId, streamType) => {
-        if (currentVoiceConnection) await stopStreaming('internal');
+    const startMusic = async (channelId) => {
+        if (currentVoiceConnection) await stopMusic('internal');
         
         await new Promise(resolve => setTimeout(resolve, 500));
         
@@ -153,7 +136,7 @@ io.on('connection', (socket) => {
             const channel = await client.channels.fetch(channelId);
             if (!channel || !channel.isVoice()) throw new Error('Ses kanalı bulunamadı veya geçersiz.');
 
-            currentStreamInfo = { type: streamType, channelId: channel.id, guildId: channel.guild.id };
+            currentStreamInfo = { type: 'music', channelId: channel.id, guildId: channel.guild.id };
 
             const connection = joinVoiceChannel({
                 channelId: channel.id,
@@ -170,8 +153,8 @@ io.on('connection', (socket) => {
             connection.subscribe(audioPlayer);
 
             audioPlayer.on('error', error => {
-                console.error(`Audio Player Hatası: ${error.message}, yeniden başlatılıyor...`);
-                stopStreaming('error');
+                console.error(`Audio Player Hatası: ${error.message}`);
+                stopMusic('error');
                 io.emit('status-update', { message: `Bir hata oluştu: ${error.message}`, type: 'error' });
             });
              
@@ -181,54 +164,24 @@ io.on('connection', (socket) => {
                         entersState(connection, VoiceConnectionStatus.Signalling, 5000),
                         entersState(connection, VoiceConnectionStatus.Connecting, 5000),
                     ]);
-                } catch (error) { stopStreaming('internal-disconnect'); }
+                } catch (error) { stopMusic('internal-disconnect'); }
             });
 
-            if (streamType === 'music') {
-                io.emit('stream-status-change', { type: 'music', isActive: true });
-                currentSongIndex = -1; // Baştan başla
-                playNextSong(channelId);
-                audioPlayer.on(AudioPlayerStatus.Idle, () => playNextSong(channelId));
+            io.emit('music-status-change', { isPlaying: true });
+            currentSongIndex = -1;
+            playNextSong();
+            audioPlayer.on(AudioPlayerStatus.Idle, () => playNextSong());
 
-            } else { // Kamera veya Video Yayını
-                let isCamera = streamType === 'camera';
-                
-                // DÜZELTME: Bu fonksiyonlar kütüphanede olmadığı için kaldırıldı.
-                // if (isCamera) await client.user.setSelfVideo(true);
-                // else await client.user.setSelfStream(true);
-                // await new Promise(resolve => setTimeout(resolve, 1000));
-
-                let videoSourceUrl = isCamera 
-                    ? config.cameraVideoUrl 
-                    : videoList[Math.floor(Math.random() * videoList.length)];
-                if (!videoSourceUrl) throw new Error('Yayın için geçerli bir URL bulunamadı.');
-
-                let stream, type;
-                if ((await playdl.validate(videoSourceUrl)) === 'yt_video') {
-                    const streamDetails = await playdl.stream(videoSourceUrl);
-                    stream = streamDetails.stream;
-                    type = streamDetails.type;
-                } else {
-                    stream = videoSourceUrl;
-                    type = StreamType.Arbitrary;
-                }
-                const resource = createAudioResource(stream, { inputType: type });
-                audioPlayer.play(resource);
-                
-                audioPlayer.on(AudioPlayerStatus.Idle, () => startStreaming(channelId, streamType)); // Döngü için
-                io.emit('status-update', { message: `${isCamera ? 'Kamera modu' : 'Yayın'} (sadece ses) başlatıldı.`, type: 'success' });
-                io.emit('stream-status-change', { type: streamType, isActive: true });
-            }
         } catch (error) {
-            console.error("Yayın/Müzik başlatma hatası:", error);
+            console.error("Müzik başlatma hatası:", error);
             io.emit('status-update', { message: `Başlatılamadı: ${error.message}`, type: 'error' });
-            stopStreaming('error');
+            stopMusic('error');
         }
     };
 
-    socket.on('toggle-stream', ({ channelId, status, type }) => {
-        if (status) startStreaming(channelId, type);
-        else stopStreaming('user');
+    socket.on('toggle-music', ({ channelId, status }) => {
+        if (status) startMusic(channelId);
+        else stopMusic('user');
     });
 
     socket.on('voice-state-change', async ({ action }) => {
@@ -261,20 +214,19 @@ io.on('connection', (socket) => {
     });
 
     socket.on('toggle-afk', (status) => { afkEnabled = status; });
-    socket.on('switch-account', (token) => { stopStreaming('internal'); login(token); });
+    socket.on('switch-account', (token) => { stopMusic('internal'); login(token); });
     socket.on('change-avatar', async (url) => { /* Değişiklik yok */ });
     
-    // DÜZELTME: Durum değiştirme fonksiyonu düzeltildi.
+    // **DÜZELTME:** Durum değiştirme fonksiyonu `TypeError` hatasını önlemek için güncellendi.
     socket.on('change-status', async (data) => {
         try {
             const activity = {};
-
             if (data.activity.name) {
-                // Gelen string'i (örn: "PLAYING") ActivityType enum'una çeviriyoruz.
-                activity.type = ActivityType[data.activity.type];
+                // Gelen string'i (örn: "PLAYING") direkt olarak kullanıyoruz.
+                // discord.js-selfbot-v13 string değerleri kabul eder.
+                activity.type = data.activity.type;
                 activity.name = data.activity.name;
 
-                // URL sadece 'STREAMING' aktivitesinde geçerlidir.
                 if (data.activity.type === 'STREAMING' && data.activity.url) {
                     activity.url = data.activity.url;
                 }
@@ -296,33 +248,37 @@ io.on('connection', (socket) => {
     socket.on('start-typing', async (channelId) => { /* Değişiklik yok */ });
     socket.on('stop-typing', async (channelId) => { /* Değişiklik yok */ });
     
-    // DÜZELTME: DM Cleaner fonksiyonu daha iyi hata yönetimi ile güncellendi.
+    // **DÜZELTME:** DM Cleaner fonksiyonu 'Unauthorized' hatasını daha iyi yönetmek için güncellendi.
     socket.on('clean-dm', async (data) => {
         try {
-            // Kullanıcıyı direkt fetch etmek yerine DM kanalını açmayı deneriz.
-            // Bu, kullanıcıyla ortak sunucun yoksa bile çalışabilir (arkadaşsan vs.)
-            const user = await client.users.cache.get(data.userId) || await client.users.fetch(data.userId);
-            const dmChannel = await user.createDM();
+            const user = await client.users.fetch(data.userId).catch(() => null);
+            if (!user) {
+                 throw new Error('Kullanıcı bulunamadı. Bu kişiyle ortak bir sunucunuz olmayabilir veya ID geçersiz.');
+            }
             
+            const dmChannel = await user.createDM();
             const messages = await dmChannel.messages.fetch({ limit: 100 });
-            // Sadece kendi gönderdiğimiz mesajları sileriz.
             const userMessages = messages.filter(m => m.author.id === client.user.id);
             
+            if (userMessages.size === 0) {
+                return socket.emit('status-update', { message: 'Silinecek mesajınız bulunamadı.', type: 'info' });
+            }
+
             let deletedCount = 0;
             for (const message of userMessages.values()) {
                 await message.delete();
                 deletedCount++;
-                // API limitlerine takılmamak için küçük bir bekleme
-                await new Promise(resolve => setTimeout(resolve, 350));
+                await new Promise(resolve => setTimeout(resolve, 350)); // Rate limit için bekleme
             }
             
             console.log(`${deletedCount} adet mesaj silindi.`);
-            socket.emit('status-update', { message: `${deletedCount} adet mesaj başarıyla silindi.`, type: 'success' });
+            socket.emit('status-update', { message: `${deletedCount} adet mesajınız başarıyla silindi.`, type: 'success' });
 
         } catch (error) {
             console.error('DM temizlenirken hata:', error);
             let errorMessage = 'DM temizlenemedi: ' + error.message;
-            if (error.code === 40001 || error.httpStatus === 403) { // Unauthorized hatası
+            // Discord API hatası ise daha açıklayıcı bir mesaj ver
+            if (error.httpStatus === 403) {
                 errorMessage = 'DM kanalı açılamadı. Bu kullanıcıyla ortak bir sunucunuz olmayabilir veya sizi engellemiş olabilir.';
             }
             socket.emit('status-update', { message: errorMessage, type: 'error' });
@@ -378,4 +334,4 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} portunda başarıyla başlatıldı.`);
 });
-    
+                
