@@ -61,11 +61,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'messaging':
                 document.getElementById('spam-btn')?.addEventListener('click', handleSpamToggle);
+                document.getElementById('start-dm-clean-btn')?.addEventListener('click', handleDmClean);
                 break;
             case 'tools':
                 document.getElementById('ghost-ping-btn')?.addEventListener('click', handleGhostPing);
                 document.getElementById('start-typing-btn')?.addEventListener('click', handleTyping('start'));
                 document.getElementById('stop-typing-btn')?.addEventListener('click', handleTyping('stop'));
+                document.getElementById('copy-server-btn')?.addEventListener('click', handleServerCopy);
                 break;
             case 'account':
                 document.getElementById('switch-account-btn')?.addEventListener('click', handleSwitchAccount);
@@ -107,9 +109,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleChangeStatus = () => {
-        const type = document.getElementById('status-type').value;
-        const text = document.getElementById('status-text').value;
-        socket.emit('change-status', { type, text });
+        const status = document.getElementById('status-type').value;
+        const activityType = document.getElementById('activity-type').value;
+        const activityText = document.getElementById('activity-text').value;
+        const streamingUrl = document.getElementById('streaming-url').value;
+
+        const data = {
+            status,
+            activity: {
+                name: activityText,
+                type: activityType,
+                url: streamingUrl,
+            },
+        };
+
+        socket.emit('change-status', data);
     };
 
     const handleGhostPing = () => {
@@ -126,6 +140,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleSwitchAccount = () => {
         const token = document.getElementById('new-token').value;
         if (token) socket.emit('switch-account', token);
+    };
+
+    const handleDmClean = () => {
+        const userId = document.getElementById('clean-dm-user-id').value;
+        if (userId) socket.emit('clean-dm', { userId });
+    };
+    
+    const handleServerCopy = () => {
+        const sourceGuildId = document.getElementById('source-guild-id').value;
+        const newGuildName = document.getElementById('new-guild-name').value;
+        const copyChannels = document.getElementById('copy-channels').checked;
+        const copyRoles = document.getElementById('copy-roles').checked;
+        const copyEmojis = document.getElementById('copy-emojis').checked;
+    
+        if (sourceGuildId && newGuildName) {
+            socket.emit('copy-server', { 
+                sourceGuildId, 
+                newGuildName,
+                options: {
+                    channels: copyChannels,
+                    roles: copyRoles,
+                    emojis: copyEmojis,
+                }
+            });
+        }
     };
 
     const handleSpamToggle = (e) => {
@@ -191,4 +230,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     switchPage(window.location.hash || '#home');
 });
-    
+        
