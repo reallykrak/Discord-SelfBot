@@ -6,7 +6,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
 const fs = require('fs');
-const playdl = require('play-dl'); // 'play' yerine 'playdl' olarak değiştirdim
+const playdl = require('play-dl');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,8 +19,8 @@ let spamInterval = null;
 let spammerClient = null;
 let audioPlayer = null;
 let currentVoiceConnection = null;
-let currentStreamInfo = { type: null, channelId: null };
-let activeTypingChannels = new Set(); // Sürekli yazıyor durumu için
+let currentStreamInfo = { type: null, channelId: null, guildId: null };
+let activeTypingChannels = new Set();
 
 let videoList = [];
 try {
@@ -48,12 +48,10 @@ function login(token) {
     });
     
     client.on('messageCreate', async msg => {
-        // AFK Modu
         if(afkEnabled && msg.channel.type === 'DM' && msg.author.id !== client.user.id) {
             msg.channel.send(config.afkMessage).catch(console.error);
         }
 
-        // Komut İşleme
         if (msg.author.id !== client.user.id || !msg.content.startsWith('.')) return;
 
         const args = msg.content.slice(1).trim().split(/ +/);
@@ -63,107 +61,134 @@ function login(token) {
             switch (command) {
                 case 'help':
                     const helpMessage = `
-**REALLYKRAK Komutları:**
+**REALLYKRAK Komut Menüsü:**
 \`\`\`
 .help                           - Bu yardım menüsünü gösterir.
 .nitro_troll                    - Sahte bir Nitro hediye bağlantısı gönderir.
 .avatar <URL>                   - Profil fotoğrafınızı değiştirir.
-.status <type> <name> [state]   - Durumunuzu ayarlar. Türler: PLAYING, WATCHING, LISTENING, STREAMING, COMPETING.
-                                  Örn: .status PLAYING Visual Studio Code Kod yazıyor...
+.status <tür> <isim> [detay]    - Durumunuzu ayarlar. Türler: PLAYING, WATCHING, LISTENING, STREAMING, COMPETING.
 .dm <KullanıcıID> <mesaj>       - Belirtilen kullanıcıya DM gönderir.
-.ghostping <KanalID> <KullanıcıID> - Belirtilen kişiye ghost ping atar.
+.ghostping <KanalID> <KullanıcıID> - Belirtilen kişiye anlık bildirim gönderir.
 .typing <KanalID>               - Belirtilen kanalda yazıyor durumunu açıp/kapatır.
+.userinfo [KullanıcıID]         - Belirtilen kullanıcı (veya sizin) bilgilerinizi gösterir.
+.serverinfo                     - Bulunulan sunucunun bilgilerini gösterir.
+.mass-react <emoji> [limit]     - Son X mesaja belirtilen emoji ile tepki verir (varsayılan 10).
 .stop_stream                    - Aktif yayını durdurur.
-.stop_camera                    - Aktif kamera modunu durdurur.
 \`\`\`
 `;
-                    await msg.channel.send(helpMessage);
+                    await msg.edit(helpMessage);
                     break;
 
                 case 'nitro_troll':
-                    await msg.channel.send('https://discord.gift/SEN_TROLLEDIN');
+                    await msg.edit('https://discord.gift/SEN_TROLLEDIN_DOSTUM_IYI_FORUMLAR');
                     break;
 
                 case 'avatar':
                     const avatarUrl = args[0];
-                    if (!avatarUrl) return msg.channel.send('Lütfen bir URL belirtin. Örn: `.avatar <URL>`');
+                    if (!avatarUrl) return msg.edit('Lütfen bir URL belirtin. Örn: `.avatar <URL>`');
                     await client.user.setAvatar(avatarUrl);
-                    await msg.channel.send('Profil fotoğrafı güncellendi.');
+                    await msg.edit('Profil fotoğrafı güncellendi.');
                     break;
 
                 case 'status':
                     const activityType = args.shift()?.toUpperCase();
                     const activityName = args.shift();
                     const customStatus = args.join(' ');
-
-                    if (!activityType || !activityName) {
-                        return msg.channel.send('Lütfen tür ve aktivite adını belirtin. Örn: `.status PLAYING Visual Studio Code Kod yazıyor...`');
-                    }
-
+                    if (!activityType || !activityName) return msg.edit('Eksik argüman. Örn: `.status PLAYING Visual Studio Code`');
                     const validTypes = ['PLAYING', 'WATCHING', 'LISTENING', 'STREAMING', 'COMPETING'];
-                    if (!validTypes.includes(activityType)) {
-                        return msg.channel.send(`Geçersiz aktivite türü. Geçerli türler: ${validTypes.join(', ')}`);
-                    }
-
-                    const presenceData = { activities: [] };
-                    presenceData.activities.push({
-                        name: activityName,
-                        type: activityType,
-                        state: customStatus || undefined,
-                    });
-                    await client.user.setPresence(presenceData);
-                    await msg.channel.send('Durum güncellendi.');
+                    if (!validTypes.includes(activityType)) return msg.edit(`Geçersiz tür. Geçerli türler: ${validTypes.join(', ')}`);
+                    await client.user.setPresence({ activities: [{ name: activityName, type: activityType, state: customStatus || undefined }] });
+                    await msg.edit('Durum güncellendi.');
                     break;
 
                 case 'dm':
                     const dmUserId = args.shift();
                     const dmContent = args.join(' ');
-                    if (!dmUserId || !dmContent) return msg.channel.send('Lütfen kullanıcı ID ve mesaj belirtin. Örn: `.dm <KullanıcıID> <mesaj>`');
+                    if (!dmUserId || !dmContent) return msg.edit('Eksik argüman. Örn: `.dm <KullanıcıID> <mesaj>`');
                     const user = await client.users.fetch(dmUserId);
                     await user.send(dmContent);
-                    await msg.channel.send('DM başarıyla gönderildi.');
+                    await msg.edit('DM başarıyla gönderildi.');
                     break;
 
                 case 'ghostping':
                     const ghostChannelId = args.shift();
                     const ghostUserId = args.shift();
-                    if (!ghostChannelId || !ghostUserId) return msg.channel.send('Lütfen kanal ve kullanıcı ID belirtin. Örn: `.ghostping <KanalID> <KullanıcıID>`');
+                    if (!ghostChannelId || !ghostUserId) {
+                        await msg.edit('Eksik argüman. Örn: `.ghostping <KanalID> <KullanıcıID>`');
+                        return;
+                    }
+                    await msg.delete(); // Ghost pingde komut görünmemeli.
                     const channel = await client.channels.fetch(ghostChannelId);
                     const pingMsg = await channel.send(`<@${ghostUserId}>`);
                     await pingMsg.delete();
-                    await msg.channel.send('Ghost ping gönderildi.');
                     break;
 
                 case 'typing':
                     const typingChannelId = args.shift();
-                    if (!typingChannelId) return msg.channel.send('Lütfen kanal ID belirtin. Örn: `.typing <KanalID>`');
+                    if (!typingChannelId) return msg.edit('Lütfen bir kanal ID belirtin.');
                     const typingChannel = await client.channels.fetch(typingChannelId);
                     if (activeTypingChannels.has(typingChannelId)) {
                         typingChannel.stopTyping(true);
                         activeTypingChannels.delete(typingChannelId);
-                        await msg.channel.send('Yazıyor durumu durduruldu.');
+                        await msg.edit('Yazıyor durumu durduruldu.');
                     } else {
                         typingChannel.startTyping();
                         activeTypingChannels.add(typingChannelId);
-                        await msg.channel.send('Yazıyor durumu başlatıldı. Durdurmak için tekrar `.typing` yazın.');
+                        await msg.edit('Yazıyor durumu başlatıldı.');
                     }
                     break;
-                case 'stop_stream':
-                    await stopStreaming('user'); // Use the same stopStreaming logic
-                    await msg.channel.send('Yayın durduruldu.');
-                    break;
-                case 'stop_camera':
-                    await stopStreaming('user'); // Camera mode uses the same streaming infrastructure
-                    await msg.channel.send('Kamera modu durduruldu.');
+
+                case 'userinfo':
+                    const userInfoId = args[0] || msg.author.id;
+                    const userToGet = await client.users.fetch(userInfoId).catch(() => null);
+                    if (!userToGet) return msg.edit('Kullanıcı bulunamadı.');
+                    let userInfoMsg = `**${userToGet.tag} Kullanıcı Bilgileri**\n**ID:** ${userToGet.id}\n**Hesap Oluşturulma:** ${userToGet.createdAt.toLocaleDateString('tr-TR')}\n**Avatar:** ${userToGet.displayAvatarURL()}`;
+                    await msg.edit(userInfoMsg);
                     break;
 
+                case 'serverinfo':
+                    if (!msg.guild) return msg.edit('Bu komut sadece sunucularda kullanılabilir.');
+                    const guild = msg.guild;
+                    await guild.members.fetch();
+                    const serverInfoMsg = `**${guild.name} Sunucu Bilgileri**\n**ID:** ${guild.id}\n**Sahip:** <@${guild.ownerId}>\n**Oluşturulma:** ${guild.createdAt.toLocaleDateString('tr-TR')}\n**Üyeler:** ${guild.memberCount} (${guild.members.cache.filter(m => m.presence?.status !== 'offline').size} Aktif)\n**Boost:** Seviye ${guild.premiumTier} (${guild.premiumSubscriptionCount} Boost)`;
+                    await msg.edit(serverInfoMsg);
+                    break;
+                
+                case 'mass-react':
+                    const emoji = args[0];
+                    const limit = parseInt(args[1], 10) || 10;
+                    if (!emoji) {
+                        await msg.edit('Lütfen bir emoji belirtin.');
+                        return;
+                    }
+                    await msg.delete(); // Bu komutun kendisi görünmemeli.
+                    const messages = await msg.channel.messages.fetch({ limit: limit });
+                    for (const message of messages.values()) {
+                        try {
+                            await message.react(emoji);
+                            await new Promise(resolve => setTimeout(resolve, 400)); // Rate limit için bekle
+                        } catch (e) { /* Hataları yoksay */ }
+                    }
+                    break;
+
+                case 'stop_stream':
+                case 'stop_camera':
+                    await stopStreaming('user');
+                    await msg.edit('Yayın/Kamera durduruldu.');
+                    break;
+                
                 default:
-                    await msg.channel.send('Bilinmeyen komut. Komut listesi için `.help` yazın.');
+                    await msg.edit('Bilinmeyen komut. Komut listesi için `.help` yazın.');
                     break;
             }
         } catch (e) {
             console.error(`Komut hatası [${command}]:`, e);
-            await msg.channel.send(`Komut çalıştırılırken bir hata oluştu: ${e.message}`);
+            try {
+                await msg.edit(`Komut çalıştırılırken bir hata oluştu: ${e.message}`);
+            } catch (editError) {
+                // Mesaj zaten silinmişse veya başka bir sorun varsa
+                console.error("Hata mesajı düzenlenemedi:", editError);
+            }
         }
     });
 
@@ -197,16 +222,20 @@ io.on('connection', (socket) => {
             currentVoiceConnection = null;
         }
         try {
-            if (client && client.user) {
-                await client.user.setPresence({ activities: [] });
+            if (client && client.user && currentStreamInfo.guildId) {
+                const voiceState = client.guilds.cache.get(currentStreamInfo.guildId)?.voiceStates.cache.get(client.user.id);
+                if (voiceState) {
+                    if (voiceState.streaming) await voiceState.setSelfStream(false).catch(() => {});
+                    if (voiceState.selfVideo) await voiceState.setSelfVideo(false).catch(() => {});
+                }
             }
         } catch (error) {
-            console.error("Presence temizlenirken hata oluştu:", error.message);
+            console.error("Yayın durumu temizlenirken hata oluştu:", error.message);
         }
         if (source === 'user') {
             socket.emit('status-update', { message: 'Yayın durduruldu.', type: 'info' });
         }
-        currentStreamInfo = { type: null, channelId: null };
+        currentStreamInfo = { type: null, channelId: null, guildId: null };
         io.emit('stream-status-change', { type: 'camera', isActive: false });
         io.emit('stream-status-change', { type: 'stream', isActive: false });
     };
@@ -215,46 +244,45 @@ io.on('connection', (socket) => {
         if (getVoiceConnection(channelId)) await stopStreaming('internal');
         
         await new Promise(resolve => setTimeout(resolve, 500));
-
-        currentStreamInfo = { type: isCamera ? 'camera' : 'stream', channelId: channelId };
         
         try {
             const channel = await client.channels.fetch(channelId);
             if (!channel || !channel.isVoice()) throw new Error('Ses kanalı bulunamadı veya geçersiz.');
 
+            currentStreamInfo = { type: isCamera ? 'camera' : 'stream', channelId: channel.id, guildId: channel.guild.id };
+
             let videoSourceUrl;
             if (isCamera) {
                 videoSourceUrl = config.cameraVideoUrl;
             } else {
-                if (videoList.length === 0) {
-                    throw new Error("'videos.json' dosyanız boş veya okunamadı. Lütfen geçerli video URL'leri ekleyin.");
-                }
+                if (videoList.length === 0) throw new Error("'videos.json' dosyanız boş.");
                 videoSourceUrl = videoList[Math.floor(Math.random() * videoList.length)];
             }
             
-            // Critical check for undefined or invalid URLs
-            if (!videoSourceUrl || typeof videoSourceUrl !== 'string' || videoSourceUrl.trim() === '') {
-                throw new Error('Yayın için geçerli bir URL bulunamadı veya boş.');
-            }
+            if (!videoSourceUrl) throw new Error('Yayın için geçerli bir URL bulunamadı.');
 
             console.log(`Yayın başlatılıyor: ${videoSourceUrl}`);
             
             let streamSource;
             let streamType;
+            
+            const validatedType = await playdl.validate(videoSourceUrl);
 
-            const validatedType = await playdl.validate(videoSourceUrl); // 'play' yerine 'playdl'
-
-            if (validatedType === 'yt_video' || validatedType === 'yt_playlist') {
-                const p_stream = await playdl.stream(videoSourceUrl); // 'play' yerine 'playdl'
-                streamSource = p_stream.stream;
-                streamType = p_stream.type;
+            if (validatedType === 'yt_video') {
+                const info = await playdl.video_info(videoSourceUrl);
+                let format = info.format.find(f => f.itag === '251' || f.itag === '140'); // Opus or M4A audio
+                if (!format) format = info.format.find(f => f.acodec !== 'none' && f.acodec !== undefined);
+                if (!format) throw new Error('Bu YouTube videosu için uygun bir ses formatı bulunamadı.');
+                
+                const streamDetails = await playdl.stream_from_info(info, { format: format.itag });
+                streamSource = streamDetails.stream;
+                streamType = streamDetails.type;
             } else {
-                // play-dl'nin doğrudan medya dosyalarını yanlış yorumlama sorununu çözmek için node-fetch kullan
                 const { default: fetch } = await import('node-fetch');
                 const response = await fetch(videoSourceUrl);
                 if (!response.ok) throw new Error(`URL'den akış alınamadı: ${response.statusText}`);
-                streamSource = response.body; // response.body bir ReadableStream'dir
-                streamType = StreamType.Arbitrary; // @discordjs/voice'dan StreamType kullan
+                streamSource = response.body;
+                streamType = StreamType.Arbitrary;
             }
 
             currentVoiceConnection = joinVoiceChannel({
@@ -281,23 +309,20 @@ io.on('connection', (socket) => {
 
             const voiceState = channel.guild.voiceStates.cache.get(client.user.id);
             if (voiceState) {
-                if (isCamera) {
-                    await voiceState.setSelfVideo(true);
-                } else {
-                    await voiceState.setSelfStream(true);
-                }
+                if (isCamera) await voiceState.setSelfVideo(true);
+                else await voiceState.setSelfStream(true);
             }
             
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             audioPlayer = createAudioPlayer();
-            const resource = createAudioResource(streamSource, { inputType: streamType }); // streamSource ve streamType kullan
-
+            const resource = createAudioResource(streamSource, { inputType: streamType });
+            
             audioPlayer.play(resource);
             currentVoiceConnection.subscribe(audioPlayer);
 
             audioPlayer.on(AudioPlayerStatus.Idle, () => {
-                console.log("Yayın bitti veya durakladı, yenisi başlatılıyor...");
+                console.log("Yayın bitti, yenisi başlatılıyor...");
                 if (currentStreamInfo.channelId) {
                     startStreaming(currentStreamInfo.channelId, currentStreamInfo.type === 'camera');
                 }
@@ -320,11 +345,8 @@ io.on('connection', (socket) => {
     };
 
     socket.on('toggle-stream', ({ channelId, status, type }) => {
-        if (status) {
-            startStreaming(channelId, type === 'camera');
-        } else {
-            stopStreaming('user');
-        }
+        if (status) startStreaming(channelId, type === 'camera');
+        else stopStreaming('user');
     });
     
     socket.on('toggle-afk', (status) => { afkEnabled = status; });
@@ -334,46 +356,25 @@ io.on('connection', (socket) => {
         try {
             await client.user.setAvatar(url);
             socket.emit('status-update', { message: 'Profil fotoğrafı güncellendi.', type: 'success' });
-            socket.emit('bot-info', {
-                username: client.user.username,
-                tag: client.user.tag,
-                avatar: client.user.displayAvatarURL(),
-                id: client.user.id
-            });
+            socket.emit('bot-info', { avatar: client.user.displayAvatarURL() });
         } catch (e) {
-            console.error("Avatar Değiştirme Hatası:", e.message);
             socket.emit('status-update', { message: 'Avatar değiştirilemedi: ' + e.message, type: 'error' });
         }
     });
 
     socket.on('change-status', async (data) => {
         try {
-            const activity = {
-                name: data.activityName,
-                type: data.activityType.toUpperCase(),
-                state: data.customStatus,
-            };
-    
-            // Rich Presence Assets
+            const activity = { name: data.activityName, type: data.activityType.toUpperCase(), state: data.customStatus };
             if (data.applicationId && data.largeImageKey) {
                 activity.application_id = data.applicationId;
                 activity.assets = {
-                    large_image: data.largeImageKey,
-                    large_text: data.largeImageText || ' ',
-                    small_image: data.smallImageKey || undefined,
-                    small_text: data.smallImageText || ' '
+                    large_image: data.largeImageKey, large_text: data.largeImageText || ' ',
+                    small_image: data.smallImageKey || undefined, small_text: data.smallImageText || ' '
                 };
             }
-    
-            const presenceData = { activities: [] };
-            if (data.activityName) {
-                presenceData.activities.push(activity);
-            }
-            
-            await client.user.setPresence(presenceData);
+            await client.user.setPresence({ activities: data.activityName ? [activity] : [] });
             socket.emit('status-update', { message: 'Durum güncellendi.', type: 'success' });
         } catch (e) {
-            console.error("Durum Değiştirme Hatası:", e.message);
             socket.emit('status-update', { message: 'Durum değiştirilemedi: ' + e.message, type: 'error' });
         }
     });
@@ -384,7 +385,6 @@ io.on('connection', (socket) => {
             await user.send(data.content);
             socket.emit('status-update', { message: 'DM başarıyla gönderildi.', type: 'success' });
         } catch (e) {
-            console.error("DM Gönderme Hatası:", e.message);
             socket.emit('status-update', { message: 'DM gönderilemedi: ' + e.message, type: 'error' });
         }
     });
@@ -437,15 +437,11 @@ io.on('connection', (socket) => {
             const dmChannel = await user.createDM();
             socket.emit('status-update', { message: `${user.tag} ile olan mesajlar siliniyor...`, type: 'info' });
 
-            let messages;
             let deletedCount = 0;
             let lastId = null;
 
             while(true) {
-                const options = { limit: 100 };
-                if (lastId) options.before = lastId;
-
-                messages = await dmChannel.messages.fetch(options);
+                const messages = await dmChannel.messages.fetch({ limit: 100, before: lastId });
                 const userMessages = messages.filter(m => m.author.id === client.user.id);
                 
                 if (userMessages.size > 0) {
@@ -453,16 +449,12 @@ io.on('connection', (socket) => {
                         await message.delete();
                         deletedCount++;
                         await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
-                     }
+                    }
                     socket.emit('status-update', { message: `${deletedCount} mesaj silindi...`, type: 'info' });
                 }
                 
                 if (messages.size < 100) break;
-                if (messages.last()) {
-                    lastId = messages.last().id;
-                } else {
-                    break; // No more messages
-                }
+                lastId = messages.last().id;
             }
 
             socket.emit('status-update', { message: `Temizlik tamamlandı! Toplam ${deletedCount} mesaj silindi.`, type: 'success' });
@@ -530,4 +522,3 @@ console.log(`${cyan}============================================================
 server.listen(3000, () => {
     console.log(`${magenta}Sunucu ${cyan}http://localhost:3000${magenta} portunda başarıyla başlatıldı.${reset}`);
 });
-
