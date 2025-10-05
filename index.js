@@ -95,10 +95,10 @@ async function startStreamer(botConfig, type = 'stream') {
 
             if (isCameraOnly) return; 
 
-            // --- YENİ VE GELİŞTİRİLMİŞ OYNATMA MANTIĞI ---
+            // --- SON DÜZENLENMİŞ VE DOĞRU ÇALIŞAN OYNATMA MANTIĞI ---
             const restartStream = async () => {
                 const bot = streamingClients.get(botConfig.token);
-                if (!bot) return; // Eğer bot durdurulduysa döngüyü sonlandır
+                if (!bot) return;
 
                 const videoSource = getRandomVideo();
                 if (!videoSource) {
@@ -109,25 +109,34 @@ async function startStreamer(botConfig, type = 'stream') {
 
                 console.log(`[Streamer] ${client.user.tag} oynatıyor: ${videoSource}`);
                 
-                let streamInfo;
+                let inputStream;
+
                 try {
-                    // Bütün video kaynaklarını (YT, MP4 vb.) play-dl ile işle
-                    streamInfo = await play.stream(videoSource, { discordPlayerCompatibility: true });
+                    // Linkin YouTube linki olup olmadığını kontrol et
+                    if (play.yt_validate(videoSource) === 'video') {
+                        console.log('[Streamer] YouTube linki algılandı, play-dl ile işleniyor...');
+                        const streamInfo = await play.stream(videoSource, { discordPlayerCompatibility: true });
+                        inputStream = streamInfo.stream; // İşlenmiş akışı kullan
+                    } else {
+                        // YouTube linki değilse, direkt link olarak kabul et
+                        console.log('[Streamer] Direkt video linki algılandı, doğrudan ffmpeg kullanılacak...');
+                        inputStream = videoSource; // Linkin kendisini kullan
+                    }
                 } catch (e) {
                     console.error(`[Streamer] Video kaynağı işlenemedi: ${videoSource}\n Hata: ${e.message}\nSıradaki video deneniyor...`);
-                    setTimeout(restartStream, 2000); // Hata durumunda 2 saniye sonra tekrar dene
+                    setTimeout(restartStream, 2000);
                     return;
                 }
             
                 try {
                     const streamConnection = await connection.createStream();
-                    // play-dl'den gelen işlenmiş akışı (stream) doğrudan oynatıcıya ver
-                    player = streamClient.createPlayer(streamInfo.stream, streamConnection.udp);
+                    // inputStream değişkeni duruma göre ya bir akış ya da bir link içerir, her ikisi de çalışır.
+                    player = streamClient.createPlayer(inputStream, streamConnection.udp);
                     botState.player = player;
     
                     player.on('finish', () => {
                         console.log(`[Streamer] Video bitti, sıradaki video başlatılıyor...`);
-                        setTimeout(restartStream, 1000); // Video bitince 1 saniye sonra yenisini başlat
+                        setTimeout(restartStream, 1000);
                     });
                     player.on('error', (err) => {
                         console.error('[Streamer] Oynatıcı hatası:', err.message);
@@ -498,3 +507,4 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
+            
