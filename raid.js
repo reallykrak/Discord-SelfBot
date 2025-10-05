@@ -1,4 +1,4 @@
-const configuration = require('../configuration.json');
+const configuration = require('./configuration.json');
 
 module.exports = (message) => {
     // Komut argümanlarını al ve varsayılan değerleri ata
