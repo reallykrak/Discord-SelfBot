@@ -2,7 +2,7 @@
 // discord-stream-client, @discordjs/opus'u bulamazsa otomatik olarak opusscript'i kullanacaktır.
 
 require('./polyfill.js');
-const { Client, ActivityType } = require("discord.js-selfbot-v13");
+const { Client, ActivityType, MessageEmbed } = require("discord.js-selfbot-v13");
 const { DiscordStreamClient } = require("discord-stream-client");
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, NoSubscriberBehavior, VoiceConnectionStatus } = require('@discordjs/voice');
 const fs = require('fs');
@@ -70,27 +70,33 @@ async function startStreamer(botConfig, type = 'stream') {
 
     const client = new Client({ checkUpdate: false });
 
-    // ---- HATA DÜZELTMESİ: AYARLAR CONSTRUCTOR'A VERİLDİ ----
-    // config.js dosyasından performans ayarlarını alıyoruz.
+    // ---- PERFORMANS VE SES İYİLEŞTİRMESİ ----
     const streamSettings = config.stream_settings || {};
     const resolution = streamSettings.resolution || '720p';
     const fps = streamSettings.fps || 30;
-    const ffmpegArgs = streamSettings.ffmpeg_args || [];
+    const videoBitrate = streamSettings.video_bitrate || '1000k';
+    const audioBitrate = streamSettings.audio_bitrate || '128k';
 
-    // Ayarları bir obje içinde toplayıp doğrudan kütüphanenin constructor'ına iletiyoruz.
+    // Mevcut argümanları kopyala
+    let ffmpegArgs = [...(streamSettings.ffmpeg_args || [])];
+
+    // Ses ve video bitrate'ini ekle
+    ffmpegArgs.push('-b:v', videoBitrate, '-b:a', audioBitrate);
+    
+    // Ses kesilmesi sorununu çözmek için codec ve frekans belirt
+    ffmpegArgs.push('-acodec', 'aac', '-ar', '48000');
+    
     const streamOptions = {
         fps: fps,
         ffmpeg_args: ffmpegArgs
     };
 
     const streamClient = new DiscordStreamClient(client, streamOptions);
-
-    // Kütüphanenin desteklediği diğer ayarları ayrıca yapıyoruz.
     streamClient.setResolution(resolution);
-    streamClient.setVideoCodec('H264');
+    streamClient.setVideoCodec('H246');
     
-    console.log(`[Streamer] Performans ayarları uygulandı: ${resolution}@${fps}fps, FFmpeg: ${ffmpegArgs.join(' ')}`);
-    // ---- DÜZELTME SONU ----
+    console.log(`[Streamer] Performans ayarları uygulandı: ${resolution}@${fps}fps, V-Bitrate: ${videoBitrate}, A-Bitrate: ${audioBitrate}`);
+    // ---- İYİLEŞTİRME SONU ----
     
     const isCameraOnly = type === 'camera';
     let player;
@@ -277,11 +283,217 @@ function loginPanelClient(token) {
         io.emit('status-update', { message: 'Panele başarıyla giriş yapıldı!', type: 'success' });
     });
     
+    // =========================================================================================
+    // ============================= YENİ KOMUT SİSTEMİ BAŞLANGIÇ =============================
+    // =========================================================================================
     panelClient.on('messageCreate', async msg => {
+        // AFK sistemi
         if(afkEnabled && msg.channel.type === 'DM' && msg.author.id !== panelClient.user.id) {
             msg.channel.send(config.afkMessage).catch(console.error);
         }
+
+        // Komutlar sadece bot sahibi tarafından kullanılabilir
+        if (msg.author.id !== panelClient.user.id) return;
+        
+        const prefix = "."; // Komut ön eki
+        if (!msg.content.startsWith(prefix)) return;
+
+        const args = msg.content.slice(prefix.length).trim().split(/ +/g);
+        const command = args.shift().toLowerCase();
+
+        // ---- YARDIM KOMUTU ----
+        if (command === "help") {
+            const helpEmbed = new MessageEmbed()
+                .setTitle('REALLYKRAK | Komut Menüsü')
+                .setDescription('Aşağıda mevcut tüm komutları görebilirsin.')
+                .setColor('BLUE')
+                .setTimestamp()
+                .setFooter({ text: `${panelClient.user.tag}` })
+                .addFields(
+                    { name: '🛠️ Genel Komutlar', value: '`.help`, `.ping`, `.avatar [@kullanıcı]`, `.sunucu-bilgi`, `.kullanıcı-bilgi [@kullanıcı]`', inline: false },
+                    { name: '✨ Eğlence & Metin Komutları', value: '`.say [mesaj]`, `.embed [mesaj]`, `.büyükyaz [mesaj]`, `.tersyaz [mesaj]`', inline: false },
+                    { name: '⚙️ Hesap Yönetimi', value: '`.oynuyor [oyun]`, `.izliyor [film]`, `.dinliyor [şarkı]`, `.yayın [yayın adı]`, `.durum [online/idle/dnd/invisible]`, `.temizle [sayı]`', inline: false },
+                    { name: '⚠️ Tehlikeli & Yönetim Komutları (DİKKATLİ KULLAN!)', value: '`.dmall [mesaj]`, `.rol-oluştur [isim] [sayı]`, `.kanal-oluştur [isim] [sayı]`, `.herkesi-banla [sebep]`, `.herkesi-kickle [sebep]`, `.kanalları-sil`, `.rolleri-sil`, `.emoji-ekle [link] [isim]`', inline: false },
+                    { name: '💥 Raid Komutları (ÇOK TEHLİKELİ!)', value: '`.raid [kanal-adı] [sayı]`', inline: false }
+                );
+            msg.channel.send({ embeds: [helpEmbed] }).catch(console.error);
+        }
+
+        // ---- GENEL KOMUTLAR ----
+        if (command === "ping") {
+            msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`);
+        }
+        if (command === "avatar") {
+            const user = msg.mentions.users.first() || panelClient.users.cache.get(args[0]) || msg.author;
+            const avatarEmbed = new MessageEmbed()
+                .setTitle(`${user.username} adlı kullanıcının avatarı`)
+                .setImage(user.displayAvatarURL({ dynamic: true, size: 1024 }))
+                .setColor("RANDOM");
+            msg.channel.send({ embeds: [avatarEmbed] });
+        }
+        if (command === "sunucu-bilgi") {
+            if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.");
+            const guild = msg.guild;
+            const infoEmbed = new MessageEmbed()
+                .setTitle(`${guild.name} | Sunucu Bilgileri`)
+                .setThumbnail(guild.iconURL({ dynamic: true }))
+                .setColor("GREEN")
+                .addFields(
+                    { name: '👑 Sahip', value: `<@${guild.ownerId}>`, inline: true },
+                    { name: '👥 Üyeler', value: `${guild.memberCount}`, inline: true },
+                    { name: '📅 Oluşturulma', value: `<t:${parseInt(guild.createdTimestamp / 1000)}:R>`, inline: true },
+                    { name: '🆔 Sunucu ID', value: guild.id, inline: false },
+                    { name: '💬 Kanallar', value: `${guild.channels.cache.size}`, inline: true },
+                    { name: '🏷️ Roller', value: `${guild.roles.cache.size}`, inline: true },
+                );
+            msg.channel.send({ embeds: [infoEmbed] });
+        }
+         if (command === "kullanıcı-bilgi") {
+            const user = msg.mentions.users.first() || panelClient.users.cache.get(args[0]) || msg.author;
+            const member = msg.guild.members.cache.get(user.id);
+            const userEmbed = new MessageEmbed()
+                .setTitle(`${user.username} | Kullanıcı Bilgileri`)
+                .setThumbnail(user.displayAvatarURL({dynamic: true}))
+                .setColor("PURPLE")
+                 .addFields(
+                    { name: 'Kullanıcı Adı', value: user.tag, inline: true },
+                    { name: 'ID', value: user.id, inline: true },
+                    { name: 'Hesap Oluşturulma', value: `<t:${parseInt(user.createdTimestamp / 1000)}:R>`, inline: false },
+                    { name: 'Sunucuya Katılma', value: `<t:${parseInt(member.joinedTimestamp / 1000)}:R>`, inline: false },
+                 );
+            msg.channel.send({embeds: [userEmbed]})
+        }
+
+
+        // ---- EĞLENCE & METİN KOMUTLARI ----
+        if (command === "say") {
+            msg.delete();
+            msg.channel.send(args.join(" "));
+        }
+        if (command === "embed") {
+            msg.delete();
+            const embed = new MessageEmbed().setDescription(args.join(" ")).setColor("ORANGE");
+            msg.channel.send({ embeds: [embed] });
+        }
+        if (command === "büyükyaz") {
+            const mapping = { 'a': '🇦', 'b': '🇧', 'c': '🇨', 'd': '🇩', 'e': '🇪', 'f': '🇫', 'g': '🇬', 'h': '🇭', 'i': '🇮', 'j': '🇯', 'k': '🇰', 'l': '🇱', 'm': '🇲', 'n': '🇳', 'o': '🇴', 'p': '🇵', 'q': '🇶', 'r': '🇷', 's': '🇸', 't': '🇹', 'u': '🇺', 'v': '🇻', 'w': '🇼', 'x': '🇽', 'y': '🇾', 'z': '🇿' };
+            const text = args.join(" ").toLowerCase().split('').map(c => mapping[c] || c).join('');
+            msg.edit(text);
+        }
+         if(command === "tersyaz") {
+            const text = args.join(' ');
+            msg.edit(text.split('').reverse().join(''));
+        }
+
+        // ---- HESAP YÖNETİMİ ----
+        if (command === "oynuyor") {
+            panelClient.user.setActivity(args.join(" "), { type: 'PLAYING' });
+            msg.edit(`Durum **Oynuyor: ${args.join(" ")}** olarak ayarlandı.`);
+        }
+        if (command === "izliyor") {
+            panelClient.user.setActivity(args.join(" "), { type: 'WATCHING' });
+            msg.edit(`Durum **İzliyor: ${args.join(" ")}** olarak ayarlandı.`);
+        }
+        if (command === "dinliyor") {
+            panelClient.user.setActivity(args.join(" "), { type: 'LISTENING' });
+            msg.edit(`Durum **Dinliyor: ${args.join(" ")}** olarak ayarlandı.`);
+        }
+        if (command === "yayın") {
+            panelClient.user.setActivity(args.join(" "), { type: 'STREAMING', url: "https://www.twitch.tv/discord" });
+            msg.edit(`Durum **Yayınlıyor: ${args.join(" ")}** olarak ayarlandı.`);
+        }
+        if (command === "durum") {
+            const status = args[0]?.toLowerCase();
+            if (['online', 'idle', 'dnd', 'invisible'].includes(status)) {
+                panelClient.user.setStatus(status);
+                msg.edit(`Görünürlük **${status}** olarak ayarlandı.`);
+            } else {
+                msg.edit("Geçersiz durum! (online, idle, dnd, invisible)");
+            }
+        }
+        if (command === "temizle") {
+            const amount = parseInt(args[0]);
+            if (isNaN(amount) || amount < 1 || amount > 100) return msg.edit("1-100 arası bir sayı girmelisin.");
+            const messages = await msg.channel.messages.fetch({ limit: amount });
+            const userMessages = messages.filter(m => m.author.id === panelClient.user.id);
+            userMessages.forEach(m => m.delete().catch(console.error));
+        }
+        
+        // ---- TEHLİKELİ YÖNETİM KOMUTLARI ----
+        if (command === "dmall") {
+             if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.");
+             const text = args.join(" ");
+             if(!text) return msg.edit("Gönderilecek mesajı yazmalısın.");
+             msg.delete();
+             msg.guild.members.cache.forEach(member => {
+                if (member.id !== panelClient.user.id && !member.user.bot) {
+                    member.send(text).catch(() => console.log(`${member.user.tag} adlı kullanıcıya DM gönderilemedi.`));
+                }
+             });
+        }
+        if(command === "rol-oluştur") {
+            if (!msg.inGuild()) return;
+            const name = args[0] || 'YeniRol';
+            const count = parseInt(args[1]) || 1;
+            for(let i = 0; i < count; i++) {
+                msg.guild.roles.create({ name: `${name}-${i+1}`, color: 'RANDOM' }).catch(console.error);
+            }
+        }
+        if(command === "kanal-oluştur") {
+             if (!msg.inGuild()) return;
+            const name = args[0] || 'yeni-kanal';
+            const count = parseInt(args[1]) || 1;
+            for(let i = 0; i < count; i++) {
+                msg.guild.channels.create(`${name}-${i+1}`).catch(console.error);
+            }
+        }
+        if (command === "herkesi-banla") {
+            if (!msg.inGuild()) return;
+            const reason = args.join(" ") || "Sebep belirtilmedi.";
+            msg.guild.members.cache.forEach(member => {
+                if (member.bannable && member.id !== panelClient.user.id) {
+                    member.ban({ reason }).catch(console.error);
+                }
+            });
+        }
+        if (command === "herkesi-kickle") {
+             if (!msg.inGuild()) return;
+             const reason = args.join(" ") || "Sebep belirtilmedi.";
+             msg.guild.members.cache.forEach(member => {
+                if (member.kickable && member.id !== panelClient.user.id) {
+                    member.kick(reason).catch(console.error);
+                }
+             });
+        }
+        if(command === "kanalları-sil") {
+            if (!msg.inGuild()) return;
+            msg.guild.channels.cache.forEach(channel => channel.delete().catch(console.error));
+        }
+        if(command === "rolleri-sil") {
+             if (!msg.inGuild()) return;
+             msg.guild.roles.cache.forEach(role => {
+                if(role.editable && role.id !== msg.guild.id) role.delete().catch(console.error);
+             });
+        }
+        if(command === "emoji-ekle") {
+            if (!msg.inGuild()) return;
+            const link = args[0];
+            const name = args[1];
+            if(!link || !name) return msg.edit("Kullanım: .emoji-ekle [link] [isim]");
+            msg.guild.emojis.create(link, name).then(emoji => msg.edit(`${emoji} emojisi eklendi!`)).catch(() => msg.edit("Emoji eklenemedi. Linki kontrol et veya yetkim yok."));
+        }
+
+        // ---- RAID KOMUTLARI ----
+        if (command === "raid") {
+            if (!msg.inGuild()) return;
+             const raidName = args[0] || "raid";
+             const amount = parseInt(args[1]) || 50;
+             executeRaid({ ...msg, content: `.raid ${raidName} ${amount}` });
+        }
     });
+    // =======================================================================================
+    // ============================= YENİ KOMUT SİSTEMİ BİTİŞ ================================
+    // =======================================================================================
 
     panelClient.login(token).catch(error => {
         console.error('[Web Panel] Giriş hatası:', error.message);
