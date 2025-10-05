@@ -119,6 +119,18 @@
     <template id="tools-template">
         <section id="tools" class="content-section">
             <div class="card">
+                <h3><i class="fa-solid fa-microphone-lines"></i> Ses Kontrolü</h3>
+                <input type="text" id="voice-channel-id" placeholder="Katılınacak Ses Kanalı ID'si">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <button id="voice-join-btn">Katıl</button>
+                    <button id="voice-leave-btn">Ayrıl</button>
+                    <button id="voice-play-btn">Müzik Çal</button>
+                    <button id="voice-stop-btn">Durdur</button>
+                    <button id="voice-mute-btn">Sustur</button>
+                    <button id="voice-deafen-btn">Sağırlaştır</button>
+                </div>
+            </div>
+            <div class="card">
                 <h3><i class="fa-solid fa-ghost"></i> Ghost Ping</h3>
                 <input type="text" id="ghost-ping-channel-id" placeholder="Kanal ID'si">
                 <input type="text" id="ghost-ping-user-id" placeholder="Kullanıcı ID'si">
@@ -129,24 +141,6 @@
                 <input type="text" id="typing-channel-id" placeholder="Kanal ID'si">
                 <button id="start-typing-btn">Başlat</button>
                 <button id="stop-typing-btn">Durdur</button>
-            </div>
-            <div class="card large-card">
-                <h3><i class="fa-solid fa-copy"></i> Sunucu Kopyalama</h3>
-                <input type="text" id="source-guild-id" placeholder="Kopyalanacak Sunucu ID'si">
-                <input type="text" id="new-guild-name" placeholder="Yeni Sunucu Adı">
-                <div class="checkbox-container">
-                    <input type="checkbox" id="copy-channels" checked>
-                    <label for="copy-channels">Kanalları Kopyala</label>
-                </div>
-                <div class="checkbox-container">
-                    <input type="checkbox" id="copy-roles" checked>
-                    <label for="copy-roles">Rolleri Kopyala</label>
-                </div>
-                <div class="checkbox-container">
-                    <input type="checkbox" id="copy-emojis" checked>
-                    <label for="copy-emojis">Emojileri Kopyala</label>
-                </div>
-                <button id="copy-server-btn">Sunucuyu Kopyala</button>
             </div>
         </section>
     </template>
@@ -164,5 +158,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-    </html>
-                                                            
+                                                                                                                                                    </html>
+                    
