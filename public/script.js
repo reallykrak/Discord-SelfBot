@@ -9,10 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const templates = {
         home: document.getElementById('home-template').innerHTML,
         streamer: document.getElementById('streamer-template').innerHTML,
-        profile: document.getElementById('profile-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
-        messaging: document.getElementById('messaging-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
-        tools: document.getElementById('tools-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
-        account: document.getElementById('account-template')?.innerHTML || '<h2>Yükleniyor...</h2>',
+        profile: document.getElementById('profile-template')?.innerHTML,
+        messaging: document.getElementById('messaging-template')?.innerHTML,
+        tools: document.getElementById('tools-template')?.innerHTML,
+        account: document.getElementById('account-template')?.innerHTML,
     };
 
     const showToast = (message, type = 'info') => {
@@ -51,10 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('toggle-afk')?.addEventListener('click', handleAfkToggle);
                 break;
             case 'streamer':
-                const container = document.getElementById('streamer-bots-container');
-                if (container) {
-                    container.addEventListener('click', handleStreamerButtonClick);
-                }
+                document.getElementById('streamer-bots-container')?.addEventListener('click', handleStreamerButtonClick);
                 break;
             case 'profile':
                 document.getElementById('change-avatar-btn')?.addEventListener('click', handleChangeAvatar);
@@ -68,7 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('ghost-ping-btn')?.addEventListener('click', handleGhostPing);
                 document.getElementById('start-typing-btn')?.addEventListener('click', handleTyping('start'));
                 document.getElementById('stop-typing-btn')?.addEventListener('click', handleTyping('stop'));
-                document.getElementById('copy-server-btn')?.addEventListener('click', handleServerCopy);
+                
+                // Voice Controls
+                document.getElementById('voice-join-btn')?.addEventListener('click', () => handleVoiceControl('join'));
+                document.getElementById('voice-leave-btn')?.addEventListener('click', () => handleVoiceControl('leave'));
+                document.getElementById('voice-play-btn')?.addEventListener('click', () => handleVoiceControl('play'));
+                document.getElementById('voice-stop-btn')?.addEventListener('click', () => handleVoiceControl('stop'));
+                document.getElementById('voice-mute-btn')?.addEventListener('click', () => handleVoiceControl('mute'));
+                document.getElementById('voice-deafen-btn')?.addEventListener('click', () => handleVoiceControl('deafen'));
                 break;
             case 'account':
                 document.getElementById('switch-account-btn')?.addEventListener('click', handleSwitchAccount);
@@ -91,13 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleStreamerButtonClick = (e) => {
         const button = e.target.closest('button');
         if (!button) return;
-
         const action = button.dataset.action;
         const token = button.dataset.token;
-
         if (action === 'start-stream' || action === 'start-camera') {
-            const type = (action === 'start-camera') ? 'camera' : 'stream';
-            socket.emit('start-streamer', { token, type });
+            socket.emit('start-streamer', { token, type: (action === 'start-camera') ? 'camera' : 'stream' });
         } else if (action === 'stop-stream') {
             socket.emit('stop-streamer', { token });
         }
@@ -106,13 +107,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderStreamerBots = (bots) => {
         const container = document.getElementById('streamer-bots-container');
         if (!container) return;
-
         container.innerHTML = bots.length > 0 ? '' : '<p>Config dosyasında yönetilecek bot bulunamadı.</p>';
-
         bots.forEach(bot => {
             const isOnline = bot.status === 'online';
             const statusColor = isOnline ? 'var(--success-color)' : 'var(--text-muted-color)';
-            const botCard = `
+            container.innerHTML += `
                 <div class="streamer-card" style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
                     <div style="display: flex; align-items: center; gap: 1rem; min-width: 250px;">
                         <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 40px; height: 40px; border-radius: 50%;">
@@ -126,10 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="toggle-btn" data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
                         <button class="toggle-btn active" style="border-color: var(--error-color);" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
                     </div>
-                </div>
-            `;
-            container.innerHTML += botCard;
+                </div>`;
         });
+    };
+
+    const handleVoiceControl = (action) => {
+        const channelId = document.getElementById('voice-channel-id')?.value;
+        socket.emit('voice-control', { action, channelId });
     };
 
     const handleAfkToggle = (e) => {
@@ -144,16 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleChangeStatus = () => {
-        const status = document.getElementById('status-type').value;
-        const activityType = document.getElementById('activity-type').value;
-        const activityText = document.getElementById('activity-text').value;
-        const streamingUrl = document.getElementById('streaming-url').value;
         const data = {
-            status,
+            status: document.getElementById('status-type').value,
             activity: {
-                name: activityText,
-                type: activityType,
-                url: streamingUrl,
+                name: document.getElementById('activity-text').value,
+                type: document.getElementById('activity-type').value,
+                url: document.getElementById('streaming-url').value,
             },
         };
         socket.emit('change-status', data);
@@ -179,22 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const userId = document.getElementById('clean-dm-user-id').value;
         if (userId) socket.emit('clean-dm', { userId });
     };
-    
-    const handleServerCopy = () => {
-        const sourceGuildId = document.getElementById('source-guild-id').value;
-        const newGuildName = document.getElementById('new-guild-name').value;
-        const copyChannels = document.getElementById('copy-channels').checked;
-        const copyRoles = document.getElementById('copy-roles').checked;
-        const copyEmojis = document.getElementById('copy-emojis').checked;
-    
-        if (sourceGuildId && newGuildName) {
-            socket.emit('copy-server', { 
-                sourceGuildId, 
-                newGuildName,
-                options: { channels: copyChannels, roles: copyRoles, emojis: copyEmojis }
-            });
-        }
-    };
 
     const handleSpamToggle = (e) => {
         const isSpamming = e.target.dataset.status === 'true';
@@ -206,11 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ping: document.getElementById('spammer-ping').checked,
             smartMode: document.getElementById('spammer-smart-mode').checked
         };
-        if (!isSpamming && (!data.token || !data.userId || !data.message)) {
-            return showToast('Lütfen tüm DM Spammer alanlarını doldurun.', 'error');
-        }
-        if (!isSpamming && (!data.delay || parseInt(data.delay) < 500)) {
-             return showToast('API limitlerini önlemek için gecikme en az 500ms olmalıdır.', 'error');
+        if (!isSpamming) {
+            if (!data.token || !data.userId || !data.message) return showToast('Lütfen tüm DM Spammer alanlarını doldurun.', 'error');
+            if (!data.delay || parseInt(data.delay) < 500) return showToast('API limitlerini önlemek için gecikme en az 500ms olmalıdır.', 'error');
         }
         socket.emit('toggle-spam', data);
     };
@@ -219,20 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('disconnect', () => { connectionStatusText.textContent = 'Bağlantı Kesildi'; });
     socket.on('bot-info', (data) => { botInfo = data; updateDynamicContent(); });
     socket.on('status-update', ({ message, type }) => showToast(message, type));
-    
-    socket.on('spam-status-change', (isActive) => {
-        const spamBtn = document.getElementById('spam-btn');
-        updateToggleButton(spamBtn, isActive, "Spam'ı Durdur", "Spam'ı Başlat");
-    });
-    
+    socket.on('spam-status-change', (isActive) => updateToggleButton(document.getElementById('spam-btn'), isActive, "Spam'ı Durdur", "Spam'ı Başlat"));
     socket.on('streamer-bots-list', renderStreamerBots);
     socket.on('streamer-status-update', renderStreamerBots);
 
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; });
-    });
+    navLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; }));
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
 
     switchPage(window.location.hash || '#home');
 });
-                                                                              
+                
