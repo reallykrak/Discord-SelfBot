@@ -1,5 +1,6 @@
 // Gerekli olmadığı için "Termux Voice/Stream Fix" bölümü kaldırıldı.
-// @discordjs/opus paketi, discord-stream-client tarafından otomatik olarak bulunacaktır.
+// Termux uyumluluğu için package.json'a opusscript paketi eklendi.
+// discord-stream-client, @discordjs/opus'u bulamazsa otomatik olarak opusscript'i kullanacaktır.
 
 require('./polyfill.js');
 const { Client, ActivityType } = require("discord.js-selfbot-v13");
@@ -312,4 +313,4 @@ server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
     console.log('Web arayüzüne erişmek için tarayıcınızı açın.');
 });
-                                                   
+                
