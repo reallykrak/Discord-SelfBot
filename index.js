@@ -13,6 +13,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
 const config = require('./config.js');
+const executeRaid = require('./raid.js'); // Raid modülü içe aktarıldı
 
 // ---- EXPRESS & SOCKET.IO KURULUMU ----
 const app = express();
@@ -48,7 +49,7 @@ async function startStreamer(botConfig, type = 'stream') {
     const client = new Client({ checkUpdate: false });
     const streamClient = new DiscordStreamClient(client);
     streamClient.setResolution('720p');
-    streamClient.setVideoCodec('H264');
+    streamClient.setVideoCodec('H24');
     
     const isCameraOnly = type === 'camera';
     let player;
@@ -180,7 +181,7 @@ function playNextSong() {
             io.emit('status-update', { message: `Müzik hatası: ${error.message}`, type: 'error' });
         });
         audioPlayer.on(VoiceConnectionStatus.Idle, () => {
-             playNextSong(); // Şarkı bitince yenisini başlat
+             playNextSong();
         });
     }
 
@@ -208,70 +209,6 @@ function loginPanelClient(token) {
         if(afkEnabled && msg.channel.type === 'DM' && msg.author.id !== panelClient.user.id) {
             msg.channel.send(config.afkMessage).catch(console.error);
         }
-
-        if (msg.author.id === panelClient.user.id) {
-            const args = msg.content.trim().split(/ +/);
-            const command = args.shift().toLowerCase();
-
-            if (command === 'ses') {
-                const subCommand = args[0] ? args[0].toLowerCase() : '';
-                const channelId = args[1];
-
-                switch (subCommand) {
-                    case 'join':
-                        if (!channelId) return msg.reply('Lütfen bir ses kanalı IDsi girin.').catch(console.error);
-                        const channel = await panelClient.channels.fetch(channelId).catch(() => null);
-                        if (!channel || !channel.isVoice()) return msg.reply('Geçerli bir ses kanalı IDsi bulunamadı.').catch(console.error);
-                        
-                        voiceConnection = joinVoiceChannel({
-                            channelId: channel.id,
-                            guildId: channel.guild.id,
-                            adapterCreator: channel.guild.voiceAdapterCreator,
-                            selfDeaf: false,
-                            selfMute: false
-                        });
-                        msg.reply(`**${channel.name}** kanalına katılındı.`).catch(console.error);
-                        break;
-                    
-                    case 'leave':
-                        if (voiceConnection) {
-                            voiceConnection.destroy();
-                            voiceConnection = null;
-                            if(audioPlayer) audioPlayer.stop();
-                            msg.reply('Ses kanalından ayrıldım.').catch(console.error);
-                        }
-                        break;
-                    
-                    case 'play':
-                        playNextSong();
-                        msg.reply('Müzik çalmaya başlıyorum...').catch(console.error);
-                        break;
-
-                    case 'stop':
-                        if (audioPlayer) {
-                            audioPlayer.stop();
-                            msg.reply('Müzik durduruldu.').catch(console.error);
-                        }
-                        break;
-
-                    case 'mute':
-                         if (voiceConnection && voiceConnection.voice) {
-                            const isMuted = !voiceConnection.voice.selfMute;
-                            voiceConnection.voice.setSelfMute(isMuted);
-                            msg.reply(isMuted ? 'Mikrofon susturuldu.' : 'Mikrofon açıldı.').catch(console.error);
-                        }
-                        break;
-
-                    case 'deafen':
-                        if (voiceConnection && voiceConnection.voice) {
-                            const isDeafened = !voiceConnection.voice.selfDeaf;
-                            voiceConnection.voice.setSelfDeaf(isDeafened);
-                            msg.reply(isDeafened ? 'Kulaklık kapatıldı.' : 'Kulaklık açıldı.').catch(console.error);
-                        }
-                        break;
-                }
-            }
-        }
     });
 
     panelClient.login(token).catch(error => {
@@ -286,6 +223,41 @@ io.on('connection', (socket) => {
     if (panelClient.user) {
         socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
     }
+
+    socket.on('start-raid', async (data) => {
+        try {
+            const { serverId, raidName, amount } = data;
+            if (!panelClient || !panelClient.user) {
+                return socket.emit('status-update', { message: 'Panel botu aktif değil.', type: 'error' });
+            }
+
+            const guild = await panelClient.guilds.fetch(serverId).catch(() => null);
+            if (!guild) {
+                return socket.emit('status-update', { message: 'Sunucu bulunamadı veya bot sunucuda değil.', type: 'error' });
+            }
+            
+            const member = await guild.members.fetch(panelClient.user.id).catch(() => null);
+            if (!member || !member.permissions.has('ADMINISTRATOR')) {
+                 return socket.emit('status-update', { message: 'Panel botunun bu sunucuda YÖNETİCİ yetkisi yok.', type: 'error' });
+            }
+
+            const mockMessage = {
+                content: `.raid ${raidName} ${amount}`,
+                guild: guild,
+                client: panelClient,
+                author: panelClient.user,
+                member: member,
+                delete: () => new Promise(resolve => resolve()),
+            };
+
+            socket.emit('status-update', { message: `${guild.name} sunucusunda raid başlatıldı!`, type: 'success' });
+            executeRaid(mockMessage);
+
+        } catch (error) {
+            console.error('[RAID HATA]', error);
+            socket.emit('status-update', { message: 'Raid başlatılırken bir hata oluştu: ' + error.message, type: 'error' });
+        }
+    });
 
     socket.on('voice-control', async (data) => {
         const { action, channelId } = data;
@@ -449,5 +421,4 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-                             
-
+            
