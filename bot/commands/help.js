@@ -1,4 +1,4 @@
-const { MessageActionRow, MessageButton } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder } = require("discord.js");
 
 module.exports = {
   name: "help",
@@ -19,23 +19,23 @@ module.exports = {
     };
 
     // Butonlar
-    const row = new MessageActionRow().addComponents(
-      new MessageButton()
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
         .setCustomId("ban")
         .setLabel("🔨 .ban")
-        .setStyle("DANGER"),
-      new MessageButton()
+        .setStyle("Danger"),
+      new ButtonBuilder()
         .setCustomId("kick")
         .setLabel("👢 .kick")
-        .setStyle("DANGER"),
-      new MessageButton()
+        .setStyle("Danger"),
+      new ButtonBuilder()
         .setCustomId("nuke")
         .setLabel("💥 .nuke")
-        .setStyle("DANGER"),
-      new MessageButton()
+        .setStyle("Danger"),
+      new ButtonBuilder()
         .setCustomId("dm")
         .setLabel("📩 .dm")
-        .setStyle("PRIMARY")
+        .setStyle("Primary")
     );
 
     // Mesaj gönder
