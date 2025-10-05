@@ -69,26 +69,28 @@ async function startStreamer(botConfig, type = 'stream') {
     }
 
     const client = new Client({ checkUpdate: false });
-    const streamClient = new DiscordStreamClient(client);
 
-    // ---- GÜNCELLENDİ: PERFORMANS AYARLARI BURADA UYGULANIYOR ----
-    // config.js dosyasındaki stream_settings bölümünden ayarları alıyoruz.
+    // ---- HATA DÜZELTMESİ: AYARLAR CONSTRUCTOR'A VERİLDİ ----
+    // config.js dosyasından performans ayarlarını alıyoruz.
     const streamSettings = config.stream_settings || {};
     const resolution = streamSettings.resolution || '720p';
     const fps = streamSettings.fps || 30;
     const ffmpegArgs = streamSettings.ffmpeg_args || [];
 
-    streamClient.setResolution(resolution);
-    streamClient.setFPS(fps);
-    streamClient.setVideoCodec('H264'); // H264 genellikle en uyumlu olanıdır.
+    // Ayarları bir obje içinde toplayıp doğrudan kütüphanenin constructor'ına iletiyoruz.
+    const streamOptions = {
+        fps: fps,
+        ffmpeg_args: ffmpegArgs
+    };
 
-    // Eğer config'de özel ffmpeg argümanları varsa, onları kullanıyoruz.
-    if (ffmpegArgs.length > 0) {
-        streamClient.setFFmpegArgs(ffmpegArgs);
-    }
+    const streamClient = new DiscordStreamClient(client, streamOptions);
+
+    // Kütüphanenin desteklediği diğer ayarları ayrıca yapıyoruz.
+    streamClient.setResolution(resolution);
+    streamClient.setVideoCodec('H264');
     
     console.log(`[Streamer] Performans ayarları uygulandı: ${resolution}@${fps}fps, FFmpeg: ${ffmpegArgs.join(' ')}`);
-    // ---- GÜNCELLEME SONU ----
+    // ---- DÜZELTME SONU ----
     
     const isCameraOnly = type === 'camera';
     let player;
@@ -520,4 +522,3 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-      
