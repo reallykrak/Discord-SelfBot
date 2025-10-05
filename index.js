@@ -93,7 +93,7 @@ async function startStreamer(botConfig, type = 'stream') {
 
     const streamClient = new DiscordStreamClient(client, streamOptions);
     streamClient.setResolution(resolution);
-    streamClient.setVideoCodec('H246');
+    streamClient.setVideoCodec('H264');
     
     console.log(`[Streamer] Performans ayarları uygulandı: ${resolution}@${fps}fps, V-Bitrate: ${videoBitrate}, A-Bitrate: ${audioBitrate}`);
     // ---- İYİLEŞTİRME SONU ----
@@ -734,3 +734,4 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
+
