@@ -366,7 +366,7 @@ io.on('connection', (socket) => {
             const activity = {};
             if (data.activity.name) {
                 activity.type = data.activity.type;
-                activity.name = data..activity.name;
+                activity.name = data.activity.name;
                 if (data.activity.type === 'STREAMING' && data.activity.url) {
                     activity.url = data.activity.url;
                 }
@@ -450,3 +450,4 @@ server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
                              
+
