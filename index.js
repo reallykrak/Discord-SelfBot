@@ -316,7 +316,8 @@ function loginPanelClient(token) {
                     { name: '⚠️ Tehlikeli & Yönetim Komutları (DİKKATLİ KULLAN!)', value: '`.dmall [mesaj]`, `.rol-oluştur [isim] [sayı]`, `.kanal-oluştur [isim] [sayı]`, `.herkesi-banla [sebep]`, `.herkesi-kickle [sebep]`, `.kanalları-sil`, `.rolleri-sil`, `.emoji-ekle [link] [isim]`', inline: false },
                     { name: '💥 Raid Komutları (ÇOK TEHLİKELİ!)', value: '`.raid [kanal-adı] [sayı]`', inline: false }
                 );
-            msg.channel.send({ embeds: [helpEmbed] }).catch(console.error);
+            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
+            msg.edit({ content: '\u200b', embeds: [helpEmbed] }).catch(console.error);
         }
 
         // ---- GENEL KOMUTLAR ----
@@ -329,7 +330,8 @@ function loginPanelClient(token) {
                 .setTitle(`${user.username} adlı kullanıcının avatarı`)
                 .setImage(user.displayAvatarURL({ dynamic: true, size: 1024 }))
                 .setColor("RANDOM");
-            msg.channel.send({ embeds: [avatarEmbed] });
+            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
+            msg.edit({ content: '\u200b', embeds: [avatarEmbed] });
         }
         if (command === "sunucu-bilgi") {
             if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.");
@@ -346,7 +348,8 @@ function loginPanelClient(token) {
                     { name: '💬 Kanallar', value: `${guild.channels.cache.size}`, inline: true },
                     { name: '🏷️ Roller', value: `${guild.roles.cache.size}`, inline: true },
                 );
-            msg.channel.send({ embeds: [infoEmbed] });
+            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
+            msg.edit({ content: '\u200b', embeds: [infoEmbed] });
         }
          if (command === "kullanıcı-bilgi") {
             const user = msg.mentions.users.first() || panelClient.users.cache.get(args[0]) || msg.author;
@@ -361,7 +364,8 @@ function loginPanelClient(token) {
                     { name: 'Hesap Oluşturulma', value: `<t:${parseInt(user.createdTimestamp / 1000)}:R>`, inline: false },
                     { name: 'Sunucuya Katılma', value: `<t:${parseInt(member.joinedTimestamp / 1000)}:R>`, inline: false },
                  );
-            msg.channel.send({embeds: [userEmbed]})
+            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
+            msg.edit({ content: '\u200b', embeds: [userEmbed]})
         }
 
 
@@ -373,7 +377,8 @@ function loginPanelClient(token) {
         if (command === "embed") {
             msg.delete();
             const embed = new MessageEmbed().setDescription(args.join(" ")).setColor("ORANGE");
-            msg.channel.send({ embeds: [embed] });
+            // DÜZELTME: "Cannot send empty message" hatasını önlemek için boş içerik eklendi.
+            msg.channel.send({ content: '\u200b', embeds: [embed] });
         }
         if (command === "büyükyaz") {
             const mapping = { 'a': '🇦', 'b': '🇧', 'c': '🇨', 'd': '🇩', 'e': '🇪', 'f': '🇫', 'g': '🇬', 'h': '🇭', 'i': '🇮', 'j': '🇯', 'k': '🇰', 'l': '🇱', 'm': '🇲', 'n': '🇳', 'o': '🇴', 'p': '🇵', 'q': '🇶', 'r': '🇷', 's': '🇸', 't': '🇹', 'u': '🇺', 'v': '🇻', 'w': '🇼', 'x': '🇽', 'y': '🇾', 'z': '🇿' };
@@ -653,7 +658,8 @@ io.on('connection', (socket) => {
         try {
             const activity = {};
             if (data.activity.name) {
-                activity.type = ActivityType[data.activity.type.charAt(0).toUpperCase() + data.activity.type.slice(1).toLowerCase()];
+                // DÜZELTME: Aktivite tipi doğrudan panelden gelen veriyle ayarlandı.
+                activity.type = data.activity.type;
                 activity.name = data.activity.name;
                 if (data.activity.type === 'STREAMING' && data.activity.url) {
                     activity.url = data.activity.url;
@@ -734,5 +740,3 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-
-
