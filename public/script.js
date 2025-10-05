@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const templates = {
         home: document.getElementById('home-template').innerHTML,
+        bot: document.getElementById('bot-template')?.innerHTML, // YENİ
         streamer: document.getElementById('streamer-template').innerHTML,
         profile: document.getElementById('profile-template')?.innerHTML,
         messaging: document.getElementById('messaging-template')?.innerHTML,
@@ -51,6 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'home':
                 document.getElementById('toggle-afk')?.addEventListener('click', handleAfkToggle);
                 break;
+            case 'bot': // YENİ: Bot yönetimi event listener'ları
+                document.getElementById('bot-install-btn')?.addEventListener('click', () => socket.emit('bot:install'));
+                document.getElementById('bot-start-btn')?.addEventListener('click', () => socket.emit('bot:start'));
+                document.getElementById('bot-stop-btn')?.addEventListener('click', () => socket.emit('bot:stop'));
+                document.getElementById('bot-command-send-btn')?.addEventListener('click', handleBotCommandSend);
+                document.getElementById('bot-command-input')?.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') handleBotCommandSend();
+                });
+                break;
             case 'streamer':
                 document.getElementById('streamer-bots-container')?.addEventListener('click', handleStreamerButtonClick);
                 break;
@@ -92,6 +102,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if(userTag) userTag.textContent = botInfo.tag;
             if(userId) userId.textContent = botInfo.id;
             if(userAvatar) userAvatar.src = botInfo.avatar;
+        }
+    };
+
+    // YENİ: Bota komut gönderme fonksiyonu
+    const handleBotCommandSend = () => {
+        const input = document.getElementById('bot-command-input');
+        if (input && input.value) {
+            socket.emit('bot:command', input.value);
+            input.value = '';
         }
     };
 
@@ -223,12 +242,38 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('bot-info', (data) => { botInfo = data; updateDynamicContent(); });
     socket.on('status-update', ({ message, type }) => showToast(message, type));
     socket.on('spam-status-change', (isActive) => updateToggleButton(document.getElementById('spam-btn'), isActive, "Spam'ı Durdur", "Spam'ı Başlat"));
-    socket.on('streamer-bots-list', renderStreamerBots);
     socket.on('streamer-status-update', renderStreamerBots);
+
+    // YENİ: Bot konsol loglarını dinle
+    socket.on('bot:log', (data) => {
+        const consoleOutput = document.getElementById('bot-console-output');
+        if (consoleOutput) {
+            consoleOutput.textContent += data;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight; // Otomatik aşağı kaydır
+        }
+    });
+
+    // YENİ: Bot durumunu dinle (çalışıyor/durdu) ve butonları ayarla
+    socket.on('bot:status', ({ isRunning }) => {
+        const startBtn = document.getElementById('bot-start-btn');
+        const stopBtn = document.getElementById('bot-stop-btn');
+        const installBtn = document.getElementById('bot-install-btn');
+        const commandInput = document.getElementById('bot-command-input');
+        const commandBtn = document.getElementById('bot-command-send-btn');
+
+        if (startBtn && stopBtn && installBtn) {
+            startBtn.disabled = isRunning;
+            installBtn.disabled = isRunning;
+            stopBtn.disabled = !isRunning;
+            commandInput.disabled = !isRunning;
+            commandBtn.disabled = !isRunning;
+        }
+    });
+
 
     navLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; }));
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
 
     switchPage(window.location.hash || '#home');
 });
-    
+                    
