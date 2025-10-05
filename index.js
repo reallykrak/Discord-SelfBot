@@ -70,8 +70,25 @@ async function startStreamer(botConfig, type = 'stream') {
 
     const client = new Client({ checkUpdate: false });
     const streamClient = new DiscordStreamClient(client);
-    streamClient.setResolution('720p');
-    streamClient.setVideoCodec('H264');
+
+    // ---- GÜNCELLENDİ: PERFORMANS AYARLARI BURADA UYGULANIYOR ----
+    // config.js dosyasındaki stream_settings bölümünden ayarları alıyoruz.
+    const streamSettings = config.stream_settings || {};
+    const resolution = streamSettings.resolution || '720p';
+    const fps = streamSettings.fps || 30;
+    const ffmpegArgs = streamSettings.ffmpeg_args || [];
+
+    streamClient.setResolution(resolution);
+    streamClient.setFPS(fps);
+    streamClient.setVideoCodec('H264'); // H264 genellikle en uyumlu olanıdır.
+
+    // Eğer config'de özel ffmpeg argümanları varsa, onları kullanıyoruz.
+    if (ffmpegArgs.length > 0) {
+        streamClient.setFFmpegArgs(ffmpegArgs);
+    }
+    
+    console.log(`[Streamer] Performans ayarları uygulandı: ${resolution}@${fps}fps, FFmpeg: ${ffmpegArgs.join(' ')}`);
+    // ---- GÜNCELLEME SONU ----
     
     const isCameraOnly = type === 'camera';
     let player;
@@ -95,7 +112,6 @@ async function startStreamer(botConfig, type = 'stream') {
 
             if (isCameraOnly) return; 
 
-            // --- SON DÜZENLENMİŞ VE DOĞRU ÇALIŞAN OYNATMA MANTIĞI ---
             const restartStream = async () => {
                 const bot = streamingClients.get(botConfig.token);
                 if (!bot) return;
@@ -112,15 +128,13 @@ async function startStreamer(botConfig, type = 'stream') {
                 let inputStream;
 
                 try {
-                    // Linkin YouTube linki olup olmadığını kontrol et
                     if (play.yt_validate(videoSource) === 'video') {
                         console.log('[Streamer] YouTube linki algılandı, play-dl ile işleniyor...');
                         const streamInfo = await play.stream(videoSource, { discordPlayerCompatibility: true });
-                        inputStream = streamInfo.stream; // İşlenmiş akışı kullan
+                        inputStream = streamInfo.stream;
                     } else {
-                        // YouTube linki değilse, direkt link olarak kabul et
                         console.log('[Streamer] Direkt video linki algılandı, doğrudan ffmpeg kullanılacak...');
-                        inputStream = videoSource; // Linkin kendisini kullan
+                        inputStream = videoSource;
                     }
                 } catch (e) {
                     console.error(`[Streamer] Video kaynağı işlenemedi: ${videoSource}\n Hata: ${e.message}\nSıradaki video deneniyor...`);
@@ -130,7 +144,6 @@ async function startStreamer(botConfig, type = 'stream') {
             
                 try {
                     const streamConnection = await connection.createStream();
-                    // inputStream değişkeni duruma göre ya bir akış ya da bir link içerir, her ikisi de çalışır.
                     player = streamClient.createPlayer(inputStream, streamConnection.udp);
                     botState.player = player;
     
@@ -507,4 +520,4 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-            
+      
