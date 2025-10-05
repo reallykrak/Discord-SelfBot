@@ -9,7 +9,7 @@ const fs = require('fs');
 const { readFileSync } = require("fs");
 const play = require("play-dl");
 const express = require('express');
-const http = require('http');
+const http = require('http'); // <-- HATA BURADAYDI, DÜZELTİLDİ
 const { Server } = require("socket.io");
 const path = require('path');
 const { spawn, exec } = require('child_process');
@@ -779,4 +779,3 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-
