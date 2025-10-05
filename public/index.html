@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>REALLYKRAK | Kontrol Paneli</title>
+    <link rel="icon" type="image/png" href="images/hello.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
@@ -11,7 +12,7 @@
     <div id="app-container">
         <nav id="sidebar">
             <div class="sidebar-header">
-                <i class="fa-brands fa-discord logo"></i>
+                <img src="images/hello.png" alt="Logo" class="logo">
                 <h1>REALLYKRAK</h1>
             </div>
             <ul id="nav-menu">
@@ -31,14 +32,14 @@
         </nav>
 
         <main id="main-content">
-        </main>
+            </main>
     </div>
     
     <div id="toast-container"></div>
     
     <template id="home-template">
         <section id="home" class="content-section">
-            <div class="card welcome-card">
+            <div class="card welcome-card large-card">
                 <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar" style="width: 100px; height: 100px; border-radius: 50%;">
                 <h2 id="user-tag">Yükleniyor...</h2>
                 <p class="user-id-p">ID: <span id="user-id">...</span></p>
@@ -57,17 +58,14 @@
             <div class="card large-card">
                 <h3><i class="fa-solid fa-robot"></i> Bot Yönetimi</h3>
                 <p>Botunuzun dosyalarını ana dizindeki <strong>'bot'</strong> klasörüne atın. Buradan botunuzu yönetebilirsiniz. <strong style="color: var(--error-color);">DİKKAT: Bu bölüm sunucunuzda doğrudan komut çalıştırır ve tehlikeli olabilir.</strong></p>
-                
                 <div class="bot-controls-container">
                     <button id="bot-install-btn">NPM Install</button>
                     <button id="bot-start-btn">Botu Başlat</button>
                     <button id="bot-stop-btn">Botu Durdur</button>
                 </div>
-
                 <div class="console-wrapper">
                     <pre id="bot-console-output">Bot konsoluna hoş geldiniz...</pre>
                 </div>
-                
                 <div class="console-input-container">
                     <input type="text" id="bot-command-input" placeholder="Çalışan bota komut gönder...">
                     <button id="bot-command-send-btn">Gönder</button>
@@ -134,7 +132,7 @@
                 </div>
                 <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
             </div>
-            <div class="card large-card">
+            <div class="card">
                 <h3><i class="fa-solid fa-eraser"></i> DM Cleaner</h3>
                 <input type="text" id="clean-dm-user-id" placeholder="Mesajları Silinecek Kişinin ID'si">
                 <button id="start-dm-clean-btn">Temizliği Başlat</button>
@@ -197,5 +195,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                    </html>
-                                                                                                                                     
+    </html>
+    
