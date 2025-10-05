@@ -12,8 +12,9 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
+const { spawn } = require('child_process'); // YENİ: Alt işlem yönetimi için eklendi
 const config = require('./config.js');
-const executeRaid = require('./raid.js'); // Raid modülü içe aktarıldı
+const executeRaid = require('./raid.js');
 
 // ---- EXPRESS & SOCKET.IO KURULUMU ----
 const app = express();
@@ -23,6 +24,31 @@ const publicPath = path.join(__dirname, 'public');
 app.use('/public', express.static(publicPath));
 app.use(express.static(publicPath));
 app.get('*', (req, res) => res.sendFile(path.join(publicPath, 'index.html')));
+
+// ---- YÖNETİLECEK BOT BÖLÜMÜ ----
+let botProcess = null;
+const botWorkingDirectory = path.join(__dirname, 'bot');
+
+// Eğer 'bot' klasörü yoksa oluştur
+if (!fs.existsSync(botWorkingDirectory)) {
+    fs.mkdirSync(botWorkingDirectory);
+    console.log('[Bot Manager] "bot" klasörü oluşturuldu. Lütfen yönetilecek bot dosyalarını bu klasöre atın.');
+}
+
+function executeBotCommand(command, args, socket) {
+    const process = spawn(command, args, { cwd: botWorkingDirectory, shell: true });
+
+    process.stdout.on('data', (data) => {
+        socket.emit('bot:log', data.toString());
+    });
+    process.stderr.on('data', (data) => {
+        socket.emit('bot:log', `[HATA] ${data.toString()}`);
+    });
+    process.on('close', (code) => {
+        socket.emit('bot:log', `İşlem sonlandı. Çıkış kodu: ${code}`);
+    });
+}
+
 
 // ---- STREAMER BÖLÜMÜ ----
 let videoList = [];
@@ -223,6 +249,51 @@ io.on('connection', (socket) => {
     if (panelClient.user) {
         socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
     }
+    // Kullanıcı bağlandığında botun mevcut durumunu gönder
+    socket.emit('bot:status', { isRunning: !!botProcess });
+
+    // ---- YENİ: BOT YÖNETİMİ EVENTLERİ ----
+    socket.on('bot:install', () => {
+        socket.emit('bot:log', 'Bağımlılıklar kuruluyor (npm install)... Lütfen bekleyin.\n');
+        executeBotCommand('npm', ['install'], socket);
+    });
+
+    socket.on('bot:start', () => {
+        if (botProcess) {
+            return socket.emit('bot:log', 'Bot zaten çalışıyor!\n');
+        }
+        socket.emit('bot:log', 'Bot başlatılıyor (node index.js)...\n');
+        botProcess = spawn('node', ['index.js'], { cwd: botWorkingDirectory, shell: true });
+        io.emit('bot:status', { isRunning: true });
+
+        botProcess.stdout.on('data', (data) => io.emit('bot:log', data.toString()));
+        botProcess.stderr.on('data', (data) => io.emit('bot:log', `[HATA] ${data.toString()}`));
+        botProcess.on('close', (code) => {
+            io.emit('bot:log', `\nBot işlemi sonlandı. Çıkış kodu: ${code}\n`);
+            botProcess = null;
+            io.emit('bot:status', { isRunning: false });
+        });
+    });
+
+    socket.on('bot:stop', () => {
+        if (botProcess) {
+            botProcess.kill();
+            botProcess = null;
+            io.emit('bot:log', 'Bot durduruldu.\n');
+            io.emit('bot:status', { isRunning: false });
+        } else {
+            socket.emit('bot:log', 'Bot zaten çalışmıyor.\n');
+        }
+    });
+
+    socket.on('bot:command', (command) => {
+        if (botProcess && command) {
+            botProcess.stdin.write(command + '\n');
+            socket.emit('bot:log', `> ${command}\n`);
+        } else {
+            socket.emit('bot:log', 'Komut göndermek için önce botu başlatmalısınız.\n');
+        }
+    });
 
     socket.on('start-raid', async (data) => {
         try {
@@ -415,11 +486,10 @@ io.on('connection', (socket) => {
     });
 });
 
+
 // ---- SUNUCUYU BAŞLAT ----
 loginPanelClient(config.panel_token);
 const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-            
-
