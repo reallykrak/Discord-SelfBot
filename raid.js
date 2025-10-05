@@ -1,4 +1,4 @@
-const configuration = require('../configuration.json');
+const configuration = require('./configuration.json');
 
 // --- HIZ AYARLARI (Optimal Değerler) ---
 // Kanal ve Rol işlemleri arasındaki bekleme süresi (milisaniye).
