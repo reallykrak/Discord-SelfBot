@@ -75,7 +75,7 @@ async function startStreamer(botConfig, type = 'stream') {
     const client = new Client({ checkUpdate: false });
     const streamClient = new DiscordStreamClient(client);
     streamClient.setResolution('720p');
-    streamClient.setVideoCodec('H24');
+    streamClient.setVideoCodec('H264');
     
     const isCameraOnly = type === 'camera';
     let player;
@@ -493,3 +493,4 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
+
