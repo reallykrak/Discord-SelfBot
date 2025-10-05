@@ -12,7 +12,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
-const { spawn } = require('child_process'); // YENİ: Alt işlem yönetimi için eklendi
+const { spawn } = require('child_process');
 const config = require('./config.js');
 const executeRaid = require('./raid.js');
 
@@ -29,7 +29,6 @@ app.get('*', (req, res) => res.sendFile(path.join(publicPath, 'index.html')));
 let botProcess = null;
 const botWorkingDirectory = path.join(__dirname, 'bot');
 
-// Eğer 'bot' klasörü yoksa oluştur
 if (!fs.existsSync(botWorkingDirectory)) {
     fs.mkdirSync(botWorkingDirectory);
     console.log('[Bot Manager] "bot" klasörü oluşturuldu. Lütfen yönetilecek bot dosyalarını bu klasöre atın.');
@@ -37,32 +36,29 @@ if (!fs.existsSync(botWorkingDirectory)) {
 
 function executeBotCommand(command, args, socket) {
     const process = spawn(command, args, { cwd: botWorkingDirectory, shell: true });
-
-    process.stdout.on('data', (data) => {
-        socket.emit('bot:log', data.toString());
-    });
-    process.stderr.on('data', (data) => {
-        socket.emit('bot:log', `[HATA] ${data.toString()}`);
-    });
-    process.on('close', (code) => {
-        socket.emit('bot:log', `İşlem sonlandı. Çıkış kodu: ${code}`);
-    });
+    process.stdout.on('data', (data) => socket.emit('bot:log', data.toString()));
+    process.stderr.on('data', (data) => socket.emit('bot:log', `[HATA] ${data.toString()}`));
+    process.on('close', (code) => socket.emit('bot:log', `İşlem sonlandı. Çıkış kodu: ${code}`));
 }
-
 
 // ---- STREAMER BÖLÜMÜ ----
 let videoList = [];
 try {
-    videoList = JSON.parse(readFileSync('./videos.json', 'utf8')).videoUrls;
-    console.log(`[Streamer] ${videoList.length} video yüklendi.`);
+    const videoData = readFileSync('./videos.json', 'utf8');
+    if (videoData) {
+        videoList = JSON.parse(videoData).videoUrls;
+        console.log(`[Streamer] ${videoList.length} video yüklendi.`);
+    }
 } catch (error) {
-    console.error('[Streamer] videos.json okunurken hata:', error);
+    console.error('[Streamer] videos.json okunurken hata:', error.message);
     videoList = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"];
+    console.log('[Streamer] Varsayılan video listesi kullanılıyor.');
 }
 
 const streamingClients = new Map();
 
 function getRandomVideo() {
+    if (videoList.length === 0) return null;
     return videoList[Math.floor(Math.random() * videoList.length)];
 }
 
@@ -91,7 +87,7 @@ async function startStreamer(botConfig, type = 'stream') {
 
         try {
             const voiceChannel = await client.channels.fetch(botConfig.voice_channel_id);
-            if (!voiceChannel || !voiceChannel.isVoice()) throw new Error('Ses kanalı bulunamadı.');
+            if (!voiceChannel || !voiceChannel.isVoice()) throw new Error('Ses kanalı bulunamadı veya bir ses kanalı değil.');
 
             const connection = await streamClient.joinVoiceChannel(voiceChannel, { selfDeaf: false, selfMute: false, selfVideo: isCameraOnly });
             botState.statusText = isCameraOnly ? `Kamera açık: ${voiceChannel.name}` : `Yayın yapıyor: ${voiceChannel.name}`;
@@ -99,40 +95,61 @@ async function startStreamer(botConfig, type = 'stream') {
 
             if (isCameraOnly) return; 
 
+            // --- YENİ VE GELİŞTİRİLMİŞ OYNATMA MANTIĞI ---
             const restartStream = async () => {
+                const bot = streamingClients.get(botConfig.token);
+                if (!bot) return; // Eğer bot durdurulduysa döngüyü sonlandır
+
+                const videoSource = getRandomVideo();
+                if (!videoSource) {
+                    console.log('[Streamer] Oynatılacak video bulunamadı. Yayın durduruluyor.');
+                    stopStreamer(botConfig.token);
+                    return;
+                }
+
+                console.log(`[Streamer] ${client.user.tag} oynatıyor: ${videoSource}`);
+                
+                let streamInfo;
                 try {
-                    let videoSource = getRandomVideo();
-                    let streamUrl = videoSource;
+                    // Bütün video kaynaklarını (YT, MP4 vb.) play-dl ile işle
+                    streamInfo = await play.stream(videoSource, { discordPlayerCompatibility: true });
+                } catch (e) {
+                    console.error(`[Streamer] Video kaynağı işlenemedi: ${videoSource}\n Hata: ${e.message}\nSıradaki video deneniyor...`);
+                    setTimeout(restartStream, 2000); // Hata durumunda 2 saniye sonra tekrar dene
+                    return;
+                }
             
-                    if (play.yt_validate(videoSource) === 'video') {
-                        const stream = await play.stream(videoSource, { discordPlayerCompatibility: true });
-                        streamUrl = stream.url;
-                    }
-            
+                try {
                     const streamConnection = await connection.createStream();
-                    player = streamClient.createPlayer(streamUrl, streamConnection.udp);
+                    // play-dl'den gelen işlenmiş akışı (stream) doğrudan oynatıcıya ver
+                    player = streamClient.createPlayer(streamInfo.stream, streamConnection.udp);
                     botState.player = player;
     
                     player.on('finish', () => {
-                        setTimeout(restartStream, 2000);
+                        console.log(`[Streamer] Video bitti, sıradaki video başlatılıyor...`);
+                        setTimeout(restartStream, 1000); // Video bitince 1 saniye sonra yenisini başlat
                     });
                     player.on('error', (err) => {
+                        console.error('[Streamer] Oynatıcı hatası:', err.message);
                         stopStreamer(botConfig.token);
                     });
     
                     player.play();
                 } catch (e) {
+                     console.error('[Streamer] Akış oluşturulurken veya oynatılırken hata:', e.message);
                      stopStreamer(botConfig.token);
                 }
             };
             await restartStream();
 
         } catch (error) {
+            console.error('[Streamer] Giriş veya yayın başlatma hatası:', error.message);
             stopStreamer(botConfig.token);
         }
     });
 
     client.login(botConfig.token).catch(err => {
+        console.error(`[Streamer] ${botConfig.token.substring(0,5)}... tokeni ile giriş yapılamadı:`, err.message);
         streamingClients.delete(botConfig.token);
         updateStreamerStatus();
     });
@@ -144,11 +161,17 @@ async function startStreamer(botConfig, type = 'stream') {
 async function stopStreamer(token) {
     const bot = streamingClients.get(token);
     if (bot) {
-        if (bot.player) bot.player.stop();
-        if (bot.client) bot.client.destroy();
+        const botTag = bot.tag || 'Bot';
+        if (bot.player) {
+            bot.player.stop();
+        }
+        if (bot.client) {
+            bot.client.destroy();
+        }
         streamingClients.delete(token);
+        console.log(`[Streamer] ${botTag} durduruldu.`);
         updateStreamerStatus();
-        io.emit('status-update', { message: `${bot.tag || 'Bot'} durduruldu.`, type: 'info' });
+        io.emit('status-update', { message: `${botTag} durduruldu.`, type: 'info' });
     }
 }
 
@@ -175,7 +198,6 @@ let voiceConnection = null;
 let audioPlayer = null;
 let musicPlaylist = [];
 
-// Müzik klasörünü oku
 const musicDir = path.join(__dirname, 'music');
 if (!fs.existsSync(musicDir)) {
     fs.mkdirSync(musicDir);
@@ -249,10 +271,8 @@ io.on('connection', (socket) => {
     if (panelClient.user) {
         socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
     }
-    // Kullanıcı bağlandığında botun mevcut durumunu gönder
     socket.emit('bot:status', { isRunning: !!botProcess });
 
-    // ---- YENİ: BOT YÖNETİMİ EVENTLERİ ----
     socket.on('bot:install', () => {
         socket.emit('bot:log', 'Bağımlılıklar kuruluyor (npm install)... Lütfen bekleyin.\n');
         executeBotCommand('npm', ['install'], socket);
@@ -313,11 +333,7 @@ io.on('connection', (socket) => {
             }
 
             const mockMessage = {
-                content: `.raid ${raidName} ${amount}`,
-                guild: guild,
-                client: panelClient,
-                author: panelClient.user,
-                member: member,
+                content: `.raid ${raidName} ${amount}`, guild, client: panelClient, author: panelClient.user, member,
                 delete: () => new Promise(resolve => resolve()),
             };
 
@@ -341,48 +357,41 @@ io.on('connection', (socket) => {
                 
                 if (voiceConnection) voiceConnection.destroy();
                 voiceConnection = joinVoiceChannel({
-                    channelId: channel.id,
-                    guildId: channel.guild.id,
-                    adapterCreator: channel.guild.voiceAdapterCreator,
-                    selfDeaf: false,
-                    selfMute: false
+                    channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator,
+                    selfDeaf: false, selfMute: false
                 });
                 socket.emit('status-update', { message: `${channel.name} kanalına katılındı.`, type: 'success' });
                 break;
             
             case 'leave':
                 if (voiceConnection) {
-                    voiceConnection.destroy();
-                    voiceConnection = null;
+                    voiceConnection.destroy(); voiceConnection = null;
                     if(audioPlayer) audioPlayer.stop();
                     socket.emit('status-update', { message: 'Ses kanalından ayrılındı.', type: 'info' });
                 }
                 break;
-
-            case 'play':
-                playNextSong();
-                break;
-
+            case 'play': playNextSong(); break;
             case 'stop':
                 if (audioPlayer) {
                     audioPlayer.stop();
                     socket.emit('status-update', { message: 'Müzik durduruldu.', type: 'info' });
                 }
                 break;
-            
             case 'mute':
-                if (voiceConnection && voiceConnection.voice) {
-                    const isMuted = !voiceConnection.voice.selfMute;
-                    voiceConnection.voice.setSelfMute(isMuted);
-                    socket.emit('status-update', { message: isMuted ? 'Mikrofon susturuldu.' : 'Mikrofon açıldı.', type: 'info' });
-                }
-                break;
-
             case 'deafen':
-                 if (voiceConnection && voiceConnection.voice) {
-                    const isDeafened = !voiceConnection.voice.selfDeaf;
-                    voiceConnection.voice.setSelfDeaf(isDeafened);
-                    socket.emit('status-update', { message: isDeafened ? 'Kulaklık kapatıldı.' : 'Kulaklık açıldı.', type: 'info' });
+                 if (voiceConnection && voiceConnection.state.status === VoiceConnectionStatus.Ready) {
+                    const member = panelClient.guilds.cache.get(voiceConnection.joinConfig.guildId)?.me;
+                    if(member?.voice) {
+                        if(action === 'mute'){
+                            const isMuted = !member.voice.selfMute;
+                            await member.voice.setMute(isMuted);
+                            socket.emit('status-update', { message: isMuted ? 'Mikrofon susturuldu.' : 'Mikrofon açıldı.', type: 'info' });
+                        } else {
+                            const isDeafened = !member.voice.selfDeaf;
+                            await member.voice.setDeaf(isDeafened);
+                            socket.emit('status-update', { message: isDeafened ? 'Kulaklık kapatıldı.' : 'Kulaklık açıldı.', type: 'info' });
+                        }
+                    }
                 }
                 break;
         }
@@ -408,7 +417,7 @@ io.on('connection', (socket) => {
         try {
             const activity = {};
             if (data.activity.name) {
-                activity.type = data.activity.type;
+                activity.type = ActivityType[data.activity.type.charAt(0).toUpperCase() + data.activity.type.slice(1).toLowerCase()];
                 activity.name = data.activity.name;
                 if (data.activity.type === 'STREAMING' && data.activity.url) {
                     activity.url = data.activity.url;
@@ -437,20 +446,19 @@ io.on('connection', (socket) => {
             const messages = await dmChannel.messages.fetch({ limit: 100 });
             const userMessages = messages.filter(m => m.author.id === panelClient.user.id);
             
+            let count = 0;
             for (const message of userMessages.values()) {
-                await message.delete();
+                await message.delete(); count++;
                 await new Promise(resolve => setTimeout(resolve, 350));
             }
-            socket.emit('status-update', { message: `${userMessages.size} mesaj silindi.`, type: 'success' });
+            socket.emit('status-update', { message: `${count} mesaj silindi.`, type: 'success' });
         } catch (error) { socket.emit('status-update', { message: 'DM temizlenemedi: ' + error.message, type: 'error' }); }
     });
 
     socket.on('toggle-spam', async (data) => {
         if (spamTimeout) {
-            clearTimeout(spamTimeout);
-            spamTimeout = null;
-            if (spammerClient) spammerClient.destroy();
-            spammerClient = null;
+            clearTimeout(spamTimeout); spamTimeout = null;
+            if (spammerClient) spammerClient.destroy(); spammerClient = null;
             socket.emit('spam-status-change', false);
             socket.emit('status-update', { message: 'Spam durduruldu.', type: 'info' });
             return;
@@ -463,29 +471,26 @@ io.on('connection', (socket) => {
             socket.emit('status-update', { message: 'Spam başlatıldı!', type: 'success' });
             
             const spamLoop = () => {
+                if(!spamTimeout) return;
                 const messageCount = data.smartMode ? Math.floor(Math.random() * 5) + 1 : 1;
                 const delay = data.smartMode ? (Math.floor(Math.random() * 3000) + parseInt(data.delay)) : parseInt(data.delay);
-
                 for (let i = 0; i < messageCount; i++) {
                     const msg = data.ping ? `<@${data.userId}> ${data.message}` : data.message;
                     user.send(msg).catch(() => {
-                        clearTimeout(spamTimeout);
-                        spamTimeout = null;
-                        if (spammerClient) spammerClient.destroy();
-                        spammerClient = null;
+                        clearTimeout(spamTimeout); spamTimeout = null;
+                        if (spammerClient) spammerClient.destroy(); spammerClient = null;
                         socket.emit('spam-status-change', false);
                         socket.emit('status-update', { message: 'Spam durduruldu (hedef engellemiş olabilir).', type: 'error' });
                     });
                 }
                 spamTimeout = setTimeout(spamLoop, delay);
             };
-            spamLoop();
+            spamTimeout = setTimeout(spamLoop, 0);
         } catch (e) {
             socket.emit('status-update', { message: 'Spam için geçersiz Token: ' + e.message, type: 'error' });
         }
     });
 });
-
 
 // ---- SUNUCUYU BAŞLAT ----
 loginPanelClient(config.panel_token);
@@ -493,4 +498,3 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-
