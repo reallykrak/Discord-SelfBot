@@ -3,31 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>REALLYKRAK | Kontrol Paneli</title>
+    <title>Stark's Industries | Kontrol Paneli</title>
     <link rel="icon" type="image/png" href="images/hello.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
+    <audio id="background-music" src="musics/song.mp4" autoplay loop></audio>
+
     <div id="app-container">
         <nav id="sidebar">
             <div class="sidebar-header">
                 <img src="images/hello.png" alt="Logo" class="logo">
-                <h1>REALLYKRAK</h1>
+                <h1>Stark's Industries</h1>
             </div>
             <ul id="nav-menu">
-                <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-house-user"></i> <span>Ana Sayfa</span></a></li>
+                <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-solar-panel"></i> <span>Ana Sayfa</span></a></li>
                 <li class="nav-item"><a href="#bot" class="nav-link"><i class="fa-solid fa-robot"></i> <span>Bot Yönetimi</span></a></li>
-                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-video"></i> <span>Yayın Yönetimi</span></a></li>
-                <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-user-pen"></i> <span>Profil Ayarları</span></a></li>
-                <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-paper-plane"></i> <span>Mesajlaşma</span></a></li>
-                <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-screwdriver-wrench"></i> <span>Araçlar</span></a></li>
-                <li class="nav-item"><a href="#raid" class="nav-link"><i class="fa-solid fa-skull-crossbones"></i> <span>Raid</span></a></li>
-                <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-circle"></i> <span>Hesap Yönetimi</span></a></li>
+                <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-satellite-dish"></i> <span>Yayın Yönetimi</span></a></li>
+                <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-id-card"></i> <span>Profil Ayarları</span></a></li>
+                <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-rocket"></i> <span>Mesajlaşma</span></a></li>
+                <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-toolbox"></i> <span>Araçlar</span></a></li>
+                <li class="nav-item"><a href="#raid" class="nav-link"><i class="fa-solid fa-biohazard"></i> <span>Raid</span></a></li>
+                <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-gear"></i> <span>Hesap Yönetimi</span></a></li>
             </ul>
             <div class="sidebar-footer">
                 <p>Bağlantı: <span id="connection-status-text">Bağlanılıyor...</span></p>
-                <p id="current-song-display" style="font-size: 0.8em; color: var(--primary-color); margin-top: 5px;"></p>
+                <button id="volume-control-btn" class="icon-btn"><i class="fa-solid fa-volume-high"></i></button>
             </div>
         </nav>
 
@@ -46,9 +48,11 @@
                 <p>Kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
             </div>
              <div class="card">
-                <h3><i class="fa-solid fa-toggle-on"></i> Genel Kontroller</h3>
-                <label>AFK Modu (Size DM atanlara otomatik mesaj gönderir)</label>
-                <button id="toggle-afk" class="toggle-btn" data-status="true">Aktif</button>
+                <h3><i class="fa-solid fa-user-secret"></i> Genel Kontroller</h3>
+                <div class="setting-row">
+                    <label>AFK Modu (Size DM atanlara otomatik mesaj gönderir)</label>
+                    <button id="toggle-afk" class="toggle-switch" data-status="true"><i></i></button>
+                </div>
             </div>
         </section>
     </template>
@@ -78,9 +82,8 @@
         <section id="streamer" class="content-section">
             <div class="card large-card">
                 <h3><i class="fa-solid fa-satellite-dish"></i> Yayın Botları Yönetimi</h3>
-                <p>`config.js` dosyasına eklediğiniz botları buradan yönetebilirsiniz. Botlar, `videos.json` listesinden rastgele bir video veya YouTube yayını açar.</p>
-                <div id="streamer-bots-container" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
-                </div>
+                <p>`config.js` dosyasına eklediğiniz botları buradan yönetebilirsiniz.</p>
+                <div id="streamer-bots-container" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;"></div>
             </div>
         </section>
     </template>
@@ -88,12 +91,12 @@
     <template id="profile-template">
         <section id="profile" class="content-section">
             <div class="card">
-                <h3><i class="fa-solid fa-image"></i> Avatar Değiştir</h3>
+                <h3><i class="fa-solid fa-image-portrait"></i> Avatar Değiştir</h3>
                 <input type="text" id="avatar-url" placeholder="Yeni Avatar URL'si">
                 <button id="change-avatar-btn">Değiştir</button>
             </div>
             <div class="card">
-                <h3><i class="fa-solid fa-signal"></i> Durum Değiştir</h3>
+                <h3><i class="fa-solid-rss"></i> Durum Değiştir</h3>
                 <select id="status-type">
                     <option value="online">Online</option>
                     <option value="idle">Boşta</option>
@@ -117,19 +120,11 @@
     <template id="messaging-template">
         <section id="messaging" class="content-section">
             <div class="card large-card">
-                <h3><i class="fa-solid fa-bolt"></i> DM Spammer</h3>
+                <h3><i class="fa-solid fa-bolt-lightning"></i> DM Spammer</h3>
                 <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
                 <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
                 <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
                 <input type="number" id="spammer-delay" placeholder="Mesaj Arası Gecikme (ms)" value="1500">
-                <div class="checkbox-container">
-                    <input type="checkbox" id="spammer-ping">
-                    <label for="spammer-ping">Her mesajda kullanıcıya ping at</label>
-                </div>
-                 <div class="checkbox-container">
-                    <input type="checkbox" id="spammer-smart-mode" checked>
-                    <label for="spammer-smart-mode">Akıllı Mod (Bot Korumalarını Atlatmayı Dener)</label>
-                </div>
                 <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
             </div>
             <div class="card">
@@ -141,38 +136,46 @@
     </template>
     
     <template id="tools-template">
-        <section id="tools" class="content-section">
-            <div class="card">
-                <h3><i class="fa-solid fa-microphone-lines"></i> Ses Kontrolü</h3>
-                <input type="text" id="voice-channel-id" placeholder="Katılınacak Ses Kanalı ID'si">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <button id="voice-join-btn">Katıl</button>
-                    <button id="voice-leave-btn">Ayrıl</button>
-                    <button id="voice-play-btn">Müzik Çal</button>
-                    <button id="voice-stop-btn">Durdur</button>
-                    <button id="voice-mute-btn">Sustur</button>
-                    <button id="voice-deafen-btn">Sağırlaştır</button>
-                </div>
-            </div>
-            <div class="card">
-                <h3><i class="fa-solid fa-ghost"></i> Ghost Ping</h3>
-                <input type="text" id="ghost-ping-channel-id" placeholder="Kanal ID'si">
-                <input type="text" id="ghost-ping-user-id" placeholder="Kullanıcı ID'si">
-                <button id="ghost-ping-btn">Gönder</button>
-            </div>
-            <div class="card">
-                <h3><i class="fa-solid fa-keyboard"></i> Yazıyor...</h3>
-                <input type="text" id="typing-channel-id" placeholder="Kanal ID'si">
-                <button id="start-typing-btn">Başlat</button>
-                <button id="stop-typing-btn">Durdur</button>
-            </div>
-        </section>
+       <section id="tools" class="content-section">
+           <div class="card large-card">
+               <div class="tab-container">
+                   <div class="tab-nav">
+                       <button class="tab-btn active" data-tab="voice"><i class="fa-solid fa-headset"></i> Ses Kontrolü</button>
+                       <button class="tab-btn" data-tab="ghost"><i class="fa-solid fa-ghost"></i> Ghost Ping</button>
+                       <button class="tab-btn" data-tab="typing"><i class="fa-solid fa-keyboard"></i> Yazıyor...</button>
+                   </div>
+                   <div class="tab-content">
+                       <div class="tab-pane active" id="tab-voice">
+                           <input type="text" id="voice-channel-id" placeholder="Katılınacak Ses Kanalı ID'si">
+                           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
+                               <button id="voice-join-btn">Katıl</button>
+                               <button id="voice-leave-btn">Ayrıl</button>
+                               <button id="voice-play-btn">Müzik Çal</button>
+                               <button id="voice-stop-btn">Durdur</button>
+                               <button id="voice-mute-btn">Sustur</button>
+                               <button id="voice-deafen-btn">Sağırlaştır</button>
+                           </div>
+                       </div>
+                       <div class="tab-pane" id="tab-ghost">
+                           <input type="text" id="ghost-ping-channel-id" placeholder="Kanal ID'si">
+                           <input type="text" id="ghost-ping-user-id" placeholder="Kullanıcı ID'si">
+                           <button id="ghost-ping-btn" style="margin-top: 1rem;">Gönder</button>
+                       </div>
+                       <div class="tab-pane" id="tab-typing">
+                           <input type="text" id="typing-channel-id" placeholder="Kanal ID'si">
+                           <button id="start-typing-btn" style="margin-top: 1rem;">Başlat</button>
+                           <button id="stop-typing-btn">Durdur</button>
+                       </div>
+                   </div>
+               </div>
+           </div>
+       </section>
     </template>
     
     <template id="raid-template">
         <section id="raid" class="content-section">
             <div class="card large-card">
-                <h3><i class="fa-solid fa-server"></i> Sunucu Raid</h3>
+                <h3><i class="fa-solid fa-biohazard"></i> Sunucu Raid</h3>
                 <p>Bu aracı dikkatli kullanın. Belirtilen sunucudaki tüm kanalları, rolleri, emojileri siler, yeni kanallar ve roller oluşturur, tüm üyelere özel mesaj gönderir ve tüm üyeleri yasaklar. Bu işlem geri alınamaz.</p>
                 <input type="text" id="raid-server-id" placeholder="Hedef Sunucu ID'si">
                 <input type="text" id="raid-name" placeholder="Oluşturulacak Kanal/Rol Adı (örn: Raidlendi)" value="Raiding">
@@ -185,7 +188,7 @@
     <template id="account-template">
         <section id="account" class="content-section">
             <div class="card">
-                <h3><i class="fa-solid fa-user-shield"></i> Hesap Yönetimi</h3>
+                <h3><i class="fa-solid fa-user-gear"></i> Hesap Yönetimi</h3>
                 <input type="password" id="new-token" placeholder="Yeni Discord Token">
                 <button id="switch-account-btn">Hesap Değiştir</button>
             </div>
