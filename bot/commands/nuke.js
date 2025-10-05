@@ -67,7 +67,7 @@ module.exports = {
       };
       maksimumHizKanalOlustur();
 
-      const cevap = ` Nuke tamamlandı!\n Silinen: ${silinenSayisi}\n⚠️ Atlanan: ${atlanSayisi}\n🔥 zypheriss`;
+      const cevap = ` Nuke tamamlandı!\n Silinen: ${silinenSayisi}\n⚠️ Atlanan: ${atlanSayisi}\n🔥 reallykrak`;
 
       // Kanalları silmeyi tamamladığı için config.json daki sahip id' deki kişiye dm den Mesaj atıcak
       const sahip = await client.users.fetch(config.ownerId);
