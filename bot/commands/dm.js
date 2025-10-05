@@ -30,10 +30,7 @@ module.exports = {
       for (const [id, uye] of uyeler) {
         if (!uye.user.bot && uye.id !== client.user.id) {
           try {
-            // --- DEĞİŞİKLİK BURADA ---
-            // Her kullanıcıya gönderilecek mesajın başına etiketini ekliyoruz.
-            // `${uye}` ifadesi otomatik olarak <@kullanıcı_id> formatına dönüşür.
-            await uye.send(`${uye}, ${dmMesaji}`);
+            await uye.send(dmMesaji);
             gonderilenSayisi++;
             console.log(`📨 DM gönderildi: ${uye.user.tag}`);
           } catch (error) {
