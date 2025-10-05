@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
         profile: document.getElementById('profile-template')?.innerHTML,
         messaging: document.getElementById('messaging-template')?.innerHTML,
         tools: document.getElementById('tools-template')?.innerHTML,
+        raid: document.getElementById('raid-template')?.innerHTML,
         account: document.getElementById('account-template')?.innerHTML,
     };
 
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.className = `toast ${type}`;
         toast.textContent = message;
         toastContainer.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        setTimeout(() => toast.remove(), 4000);
     };
 
     const updateToggleButton = (button, isActive, activeText, inactiveText) => {
@@ -66,13 +67,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('start-typing-btn')?.addEventListener('click', handleTyping('start'));
                 document.getElementById('stop-typing-btn')?.addEventListener('click', handleTyping('stop'));
                 
-                // Voice Controls
                 document.getElementById('voice-join-btn')?.addEventListener('click', () => handleVoiceControl('join'));
                 document.getElementById('voice-leave-btn')?.addEventListener('click', () => handleVoiceControl('leave'));
                 document.getElementById('voice-play-btn')?.addEventListener('click', () => handleVoiceControl('play'));
                 document.getElementById('voice-stop-btn')?.addEventListener('click', () => handleVoiceControl('stop'));
                 document.getElementById('voice-mute-btn')?.addEventListener('click', () => handleVoiceControl('mute'));
                 document.getElementById('voice-deafen-btn')?.addEventListener('click', () => handleVoiceControl('deafen'));
+                break;
+            case 'raid':
+                document.getElementById('start-raid-btn')?.addEventListener('click', handleRaidStart);
                 break;
             case 'account':
                 document.getElementById('switch-account-btn')?.addEventListener('click', handleSwitchAccount);
@@ -89,6 +92,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if(userTag) userTag.textContent = botInfo.tag;
             if(userId) userId.textContent = botInfo.id;
             if(userAvatar) userAvatar.src = botInfo.avatar;
+        }
+    };
+
+    const handleRaidStart = () => {
+        const serverId = document.getElementById('raid-server-id').value;
+        const raidName = document.getElementById('raid-name').value;
+        const amount = document.getElementById('raid-amount').value;
+
+        if (!serverId || !raidName || !amount) {
+            return showToast('Lütfen tüm Raid alanlarını doldurun.', 'error');
+        }
+        
+        const confirmation = confirm(`'${serverId}' ID'li sunucuya raid başlatmak istediğinizden emin misiniz? BU İŞLEM GERİ ALINAMAZ.`);
+        if (confirmation) {
+            showToast(`Raid başlatılıyor... Sunucu ID: ${serverId}`, 'warning');
+            socket.emit('start-raid', { 
+                serverId, 
+                raidName,
+                amount: parseInt(amount) 
+            });
         }
     };
 
@@ -208,4 +231,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     switchPage(window.location.hash || '#home');
 });
-                
+    
