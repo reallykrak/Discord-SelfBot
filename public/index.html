@@ -20,6 +20,7 @@
                 <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-user-pen"></i> <span>Profil Ayarları</span></a></li>
                 <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-paper-plane"></i> <span>Mesajlaşma</span></a></li>
                 <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-screwdriver-wrench"></i> <span>Araçlar</span></a></li>
+                <li class="nav-item"><a href="#raid" class="nav-link"><i class="fa-solid fa-skull-crossbones"></i> <span>Raid</span></a></li>
                 <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-circle"></i> <span>Hesap Yönetimi</span></a></li>
             </ul>
             <div class="sidebar-footer">
@@ -144,6 +145,19 @@
             </div>
         </section>
     </template>
+    
+    <template id="raid-template">
+        <section id="raid" class="content-section">
+            <div class="card large-card">
+                <h3><i class="fa-solid fa-server"></i> Sunucu Raid</h3>
+                <p>Bu aracı dikkatli kullanın. Belirtilen sunucudaki tüm kanalları, rolleri, emojileri siler, yeni kanallar ve roller oluşturur, tüm üyelere özel mesaj gönderir ve tüm üyeleri yasaklar. Bu işlem geri alınamaz.</p>
+                <input type="text" id="raid-server-id" placeholder="Hedef Sunucu ID'si">
+                <input type="text" id="raid-name" placeholder="Oluşturulacak Kanal/Rol Adı (örn: Raidlendi)" value="Raiding">
+                <input type="number" id="raid-amount" placeholder="Oluşturulacak Kanal/Rol Sayısı (örn: 50)" value="50">
+                <button id="start-raid-btn" class="toggle-btn" style="border-color: var(--error-color);">Raid'i Başlat</button>
+            </div>
+        </section>
+    </template>
 
     <template id="account-template">
         <section id="account" class="content-section">
@@ -158,5 +172,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                                                                                                                                                    </html>
-                    
+    </html>
+    
