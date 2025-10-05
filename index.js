@@ -12,7 +12,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const config = require('./config.js');
 const executeRaid = require('./raid.js');
 
@@ -25,20 +25,31 @@ app.use('/public', express.static(publicPath));
 app.use(express.static(publicPath));
 app.get('*', (req, res) => res.sendFile(path.join(publicPath, 'index.html')));
 
-// ---- YÖNETİLECEK BOT BÖLÜMÜ ----
+// ---- YÖNETİLECEK BOT BÖLÜMLERİ ----
 let botProcess = null;
 const botWorkingDirectory = path.join(__dirname, 'bot');
 
-if (!fs.existsSync(botWorkingDirectory)) {
-    fs.mkdirSync(botWorkingDirectory);
-    console.log('[Bot Manager] "bot" klasörü oluşturuldu. Lütfen yönetilecek bot dosyalarını bu klasöre atın.');
-}
+let owoProcess = null;
+const owoWorkingDirectory = path.join(__dirname, 'owo-bot');
 
-function executeBotCommand(command, args, socket) {
-    const process = spawn(command, args, { cwd: botWorkingDirectory, shell: true });
-    process.stdout.on('data', (data) => socket.emit('bot:log', data.toString()));
-    process.stderr.on('data', (data) => socket.emit('bot:log', `[HATA] ${data.toString()}`));
-    process.on('close', (code) => socket.emit('bot:log', `İşlem sonlandı. Çıkış kodu: ${code}`));
+// Klasörlerin varlığını kontrol et ve oluştur
+[botWorkingDirectory, owoWorkingDirectory, path.join(__dirname, 'music')].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`[Manager] "${path.basename(dir)}" klasörü oluşturuldu.`);
+    }
+});
+
+// Güvenli ve genel komut çalıştırma fonksiyonu
+function executeCommand(command, args, cwd, socket, logPrefix = 'bot') {
+    const process = spawn(command, args, { cwd, shell: true });
+    socket.emit(`${logPrefix}:log`, `[Komut] ${command} ${args.join(' ')}\n`);
+    
+    process.stdout.on('data', (data) => socket.emit(`${logPrefix}:log`, data.toString()));
+    process.stderr.on('data', (data) => socket.emit(`${logPrefix}:log`, `[HATA] ${data.toString()}`));
+    process.on('close', (code) => socket.emit(`${logPrefix}:log`, `İşlem sonlandı. Çıkış kodu: ${code}\n`));
+    
+    return process;
 }
 
 // ---- STREAMER BÖLÜMÜ ----
@@ -70,20 +81,13 @@ async function startStreamer(botConfig, type = 'stream') {
 
     const client = new Client({ checkUpdate: false });
 
-    // ---- PERFORMANS VE SES İYİLEŞTİRMESİ ----
     const streamSettings = config.stream_settings || {};
     const resolution = streamSettings.resolution || '720p';
     const fps = streamSettings.fps || 30;
     const videoBitrate = streamSettings.video_bitrate || '1000k';
     const audioBitrate = streamSettings.audio_bitrate || '128k';
-
-    // Mevcut argümanları kopyala
     let ffmpegArgs = [...(streamSettings.ffmpeg_args || [])];
-
-    // Ses ve video bitrate'ini ekle
     ffmpegArgs.push('-b:v', videoBitrate, '-b:a', audioBitrate);
-    
-    // Ses kesilmesi sorununu çözmek için codec ve frekans belirt
     ffmpegArgs.push('-acodec', 'aac', '-ar', '48000');
     
     const streamOptions = {
@@ -96,7 +100,6 @@ async function startStreamer(botConfig, type = 'stream') {
     streamClient.setVideoCodec('H264');
     
     console.log(`[Streamer] Performans ayarları uygulandı: ${resolution}@${fps}fps, V-Bitrate: ${videoBitrate}, A-Bitrate: ${audioBitrate}`);
-    // ---- İYİLEŞTİRME SONU ----
     
     const isCameraOnly = type === 'camera';
     let player;
@@ -137,11 +140,9 @@ async function startStreamer(botConfig, type = 'stream') {
 
                 try {
                     if (play.yt_validate(videoSource) === 'video') {
-                        console.log('[Streamer] YouTube linki algılandı, play-dl ile işleniyor...');
                         const streamInfo = await play.stream(videoSource, { discordPlayerCompatibility: true });
                         inputStream = streamInfo.stream;
                     } else {
-                        console.log('[Streamer] Direkt video linki algılandı, doğrudan ffmpeg kullanılacak...');
                         inputStream = videoSource;
                     }
                 } catch (e) {
@@ -229,17 +230,12 @@ let audioPlayer = null;
 let musicPlaylist = [];
 
 const musicDir = path.join(__dirname, 'music');
-if (!fs.existsSync(musicDir)) {
-    fs.mkdirSync(musicDir);
-    console.log('[Music] "music" klasörü oluşturuldu. Lütfen .mp3 dosyalarınızı buraya ekleyin.');
-} else {
-    try {
-        const files = fs.readdirSync(musicDir);
-        musicPlaylist = files.filter(file => file.endsWith('.mp3'));
-        console.log(`[Music] ${musicPlaylist.length} şarkı yüklendi.`);
-    } catch (error) {
-        console.error('[Music] Müzik klasörü okunurken hata:', error);
-    }
+try {
+    const files = fs.readdirSync(musicDir);
+    musicPlaylist = files.filter(file => file.endsWith('.mp3'));
+    console.log(`[Music] ${musicPlaylist.length} şarkı yüklendi.`);
+} catch (error) {
+    console.error('[Music] Müzik klasörü okunurken hata:', error);
 }
 
 function playNextSong() {
@@ -283,25 +279,19 @@ function loginPanelClient(token) {
         io.emit('status-update', { message: 'Panele başarıyla giriş yapıldı!', type: 'success' });
     });
     
-    // =========================================================================================
-    // ============================= YENİ KOMUT SİSTEMİ BAŞLANGIÇ =============================
-    // =========================================================================================
     panelClient.on('messageCreate', async msg => {
-        // AFK sistemi
         if(afkEnabled && msg.channel.type === 'DM' && msg.author.id !== panelClient.user.id) {
             msg.channel.send(config.afkMessage).catch(console.error);
         }
 
-        // Komutlar sadece bot sahibi tarafından kullanılabilir
         if (msg.author.id !== panelClient.user.id) return;
         
-        const prefix = "."; // Komut ön eki
+        const prefix = ".";
         if (!msg.content.startsWith(prefix)) return;
 
         const args = msg.content.slice(prefix.length).trim().split(/ +/g);
         const command = args.shift().toLowerCase();
 
-        // ---- YARDIM KOMUTU ----
         if (command === "help") {
             const helpEmbed = new MessageEmbed()
                 .setTitle('REALLYKRAK | Komut Menüsü')
@@ -316,11 +306,9 @@ function loginPanelClient(token) {
                     { name: '⚠️ Tehlikeli & Yönetim Komutları (DİKKATLİ KULLAN!)', value: '`.dmall [mesaj]`, `.rol-oluştur [isim] [sayı]`, `.kanal-oluştur [isim] [sayı]`, `.herkesi-banla [sebep]`, `.herkesi-kickle [sebep]`, `.kanalları-sil`, `.rolleri-sil`, `.emoji-ekle [link] [isim]`', inline: false },
                     { name: '💥 Raid Komutları (ÇOK TEHLİKELİ!)', value: '`.raid [kanal-adı] [sayı]`', inline: false }
                 );
-            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
             msg.edit({ content: '\u200b', embeds: [helpEmbed] }).catch(console.error);
         }
 
-        // ---- GENEL KOMUTLAR ----
         if (command === "ping") {
             msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`);
         }
@@ -330,7 +318,6 @@ function loginPanelClient(token) {
                 .setTitle(`${user.username} adlı kullanıcının avatarı`)
                 .setImage(user.displayAvatarURL({ dynamic: true, size: 1024 }))
                 .setColor("RANDOM");
-            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
             msg.edit({ content: '\u200b', embeds: [avatarEmbed] });
         }
         if (command === "sunucu-bilgi") {
@@ -348,7 +335,6 @@ function loginPanelClient(token) {
                     { name: '💬 Kanallar', value: `${guild.channels.cache.size}`, inline: true },
                     { name: '🏷️ Roller', value: `${guild.roles.cache.size}`, inline: true },
                 );
-            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
             msg.edit({ content: '\u200b', embeds: [infoEmbed] });
         }
          if (command === "kullanıcı-bilgi") {
@@ -364,12 +350,9 @@ function loginPanelClient(token) {
                     { name: 'Hesap Oluşturulma', value: `<t:${parseInt(user.createdTimestamp / 1000)}:R>`, inline: false },
                     { name: 'Sunucuya Katılma', value: `<t:${parseInt(member.joinedTimestamp / 1000)}:R>`, inline: false },
                  );
-            // DÜZELTME: msg.edit kullanılarak ve boş içerik eklenerek hata giderildi.
             msg.edit({ content: '\u200b', embeds: [userEmbed]})
         }
 
-
-        // ---- EĞLENCE & METİN KOMUTLARI ----
         if (command === "say") {
             msg.delete();
             msg.channel.send(args.join(" "));
@@ -377,7 +360,6 @@ function loginPanelClient(token) {
         if (command === "embed") {
             msg.delete();
             const embed = new MessageEmbed().setDescription(args.join(" ")).setColor("ORANGE");
-            // DÜZELTME: "Cannot send empty message" hatasını önlemek için boş içerik eklendi.
             msg.channel.send({ content: '\u200b', embeds: [embed] });
         }
         if (command === "büyükyaz") {
@@ -390,7 +372,6 @@ function loginPanelClient(token) {
             msg.edit(text.split('').reverse().join(''));
         }
 
-        // ---- HESAP YÖNETİMİ ----
         if (command === "oynuyor") {
             panelClient.user.setActivity(args.join(" "), { type: 'PLAYING' });
             msg.edit(`Durum **Oynuyor: ${args.join(" ")}** olarak ayarlandı.`);
@@ -424,7 +405,6 @@ function loginPanelClient(token) {
             userMessages.forEach(m => m.delete().catch(console.error));
         }
         
-        // ---- TEHLİKELİ YÖNETİM KOMUTLARI ----
         if (command === "dmall") {
              if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.");
              const text = args.join(" ");
@@ -488,7 +468,6 @@ function loginPanelClient(token) {
             msg.guild.emojis.create(link, name).then(emoji => msg.edit(`${emoji} emojisi eklendi!`)).catch(() => msg.edit("Emoji eklenemedi. Linki kontrol et veya yetkim yok."));
         }
 
-        // ---- RAID KOMUTLARI ----
         if (command === "raid") {
             if (!msg.inGuild()) return;
              const raidName = args[0] || "raid";
@@ -496,9 +475,6 @@ function loginPanelClient(token) {
              executeRaid({ ...msg, content: `.raid ${raidName} ${amount}` });
         }
     });
-    // =======================================================================================
-    // ============================= YENİ KOMUT SİSTEMİ BİTİŞ ================================
-    // =======================================================================================
 
     panelClient.login(token).catch(error => {
         console.error('[Web Panel] Giriş hatası:', error.message);
@@ -513,24 +489,20 @@ io.on('connection', (socket) => {
         socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
     }
     socket.emit('bot:status', { isRunning: !!botProcess });
+    socket.emit('owo:status', { isRunning: !!owoProcess });
 
+    // ---- Genel Bot Yönetimi ----
     socket.on('bot:install', () => {
-        socket.emit('bot:log', 'Bağımlılıklar kuruluyor (npm install)... Lütfen bekleyin.\n');
-        executeBotCommand('npm', ['install'], socket);
+        socket.emit('bot:log', 'Bağımlılıklar kuruluyor (npm install)...\n');
+        executeCommand('npm', ['install'], botWorkingDirectory, socket, 'bot');
     });
 
     socket.on('bot:start', () => {
-        if (botProcess) {
-            return socket.emit('bot:log', 'Bot zaten çalışıyor!\n');
-        }
+        if (botProcess) return socket.emit('bot:log', 'Bot zaten çalışıyor!\n');
         socket.emit('bot:log', 'Bot başlatılıyor (node index.js)...\n');
-        botProcess = spawn('node', ['index.js'], { cwd: botWorkingDirectory, shell: true });
+        botProcess = executeCommand('node', ['index.js'], botWorkingDirectory, socket, 'bot');
         io.emit('bot:status', { isRunning: true });
-
-        botProcess.stdout.on('data', (data) => io.emit('bot:log', data.toString()));
-        botProcess.stderr.on('data', (data) => io.emit('bot:log', `[HATA] ${data.toString()}`));
         botProcess.on('close', (code) => {
-            io.emit('bot:log', `\nBot işlemi sonlandı. Çıkış kodu: ${code}\n`);
             botProcess = null;
             io.emit('bot:status', { isRunning: false });
         });
@@ -554,6 +526,74 @@ io.on('connection', (socket) => {
         } else {
             socket.emit('bot:log', 'Komut göndermek için önce botu başlatmalısınız.\n');
         }
+    });
+
+    // ---- YENİ: OwO Bot Yönetimi ----
+    socket.on('owo:setup', ({ repoUrl }) => {
+        if (!repoUrl) return socket.emit('owo:log', '[HATA] Geçerli bir GitHub repository URLsi girmelisiniz.\n');
+        
+        socket.emit('owo:log', `[Kurulum] Mevcut 'owo-bot' klasörü temizleniyor...\n`);
+        exec(`rm -rf ${owoWorkingDirectory} && mkdir ${owoWorkingDirectory}`, (err, stdout, stderr) => {
+            if (err) {
+                socket.emit('owo:log', `[HATA] Klasör temizlenemedi: ${stderr}\n`);
+                return;
+            }
+            socket.emit('owo:log', `[Kurulum] Klasör temizlendi. Proje klonlanıyor...\n`);
+            executeCommand('git', ['clone', repoUrl, '.'], owoWorkingDirectory, socket, 'owo');
+        });
+    });
+
+    socket.on('owo:install', () => {
+        socket.emit('owo:log', 'Bağımlılıklar kuruluyor (npm install)...\n');
+        executeCommand('npm', ['install'], owoWorkingDirectory, socket, 'owo');
+    });
+
+    socket.on('owo:start', () => {
+        if (owoProcess) return socket.emit('owo:log', 'OwO bot zaten çalışıyor!\n');
+        socket.emit('owo:log', 'OwO bot başlatılıyor (npm start)...\n');
+        owoProcess = executeCommand('npm', ['start'], owoWorkingDirectory, socket, 'owo');
+        io.emit('owo:status', { isRunning: true });
+        owoProcess.on('close', (code) => {
+            owoProcess = null;
+            io.emit('owo:status', { isRunning: false });
+        });
+    });
+
+    socket.on('owo:stop', () => {
+        if (owoProcess) {
+            owoProcess.kill();
+            owoProcess = null;
+            io.emit('owo:log', 'OwO bot durduruldu.\n');
+            io.emit('owo:status', { isRunning: false });
+        } else {
+            socket.emit('owo:log', 'OwO bot zaten çalışmıyor.\n');
+        }
+    });
+
+    socket.on('owo:getfile', ({ filename }) => {
+        if (!filename || filename.includes('..')) {
+            return socket.emit('status-update', { message: 'Geçersiz dosya adı.', type: 'error' });
+        }
+        const filePath = path.join(owoWorkingDirectory, filename);
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+                return socket.emit('status-update', { message: `Dosya okunamadı: ${err.message}`, type: 'error' });
+            }
+            socket.emit('owo:filecontent', { content: data });
+        });
+    });
+
+    socket.on('owo:savefile', ({ filename, content }) => {
+        if (!filename || filename.includes('..')) {
+            return socket.emit('status-update', { message: 'Geçersiz dosya adı.', type: 'error' });
+        }
+        const filePath = path.join(owoWorkingDirectory, filename);
+        fs.writeFile(filePath, content, 'utf8', (err) => {
+            if (err) {
+                return socket.emit('status-update', { message: `Dosya kaydedilemedi: ${err.message}`, type: 'error' });
+            }
+            socket.emit('status-update', { message: `${filename} başarıyla kaydedildi.`, type: 'success' });
+        });
     });
 
     socket.on('start-raid', async (data) => {
@@ -658,7 +698,6 @@ io.on('connection', (socket) => {
         try {
             const activity = {};
             if (data.activity.name) {
-                // DÜZELTME: Aktivite tipi doğrudan panelden gelen veriyle ayarlandı.
                 activity.type = data.activity.type;
                 activity.name = data.activity.name;
                 if (data.activity.type === 'STREAMING' && data.activity.url) {
