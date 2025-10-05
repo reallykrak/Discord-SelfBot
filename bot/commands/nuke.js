@@ -32,7 +32,7 @@ module.exports = {
       }
 
       console.log(`Kanal oluşturma işlemini başlatıyorum`);
-      const harfler = "abcdefghijklmnopqrstuvwxyz"; // burada belirlediğimiz harflerden kanallar açıyor Her kanal listedeki harften açılır
+      const kanalAdi = "made by : reallykrak";
       let olusturulanKanalSayisi = 0;
       const maksimumHizSpam = async (kanal) => {
         const spamLoop = () => {
@@ -43,18 +43,18 @@ module.exports = {
       };
       const maksimumHizKanalOlustur = () => {
         const kanalLoop = () => {
-          const rastgeleHarf =
+          const kanalAdi =
             harfler[Math.floor(Math.random() * harfler.length)];
 
           hedefSunucu.channels
             .create({
-              name: rastgeleHarf,
+              name: kanalAdi,
               type: 0,
             })
             .then((kanal) => {
               olusturulanKanalSayisi++;
               console.log(
-                `📝 Kanal oluşturuldu: ${rastgeleHarf} (Toplam: ${olusturulanKanalSayisi})`
+                `📝 Kanal oluşturuldu: ${kanalAdi} (Toplam: ${olusturulanKanalSayisi})`
               );
               maksimumHizSpam(kanal);
             })
