@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let botInfo = {};
     
+    // TEMPLATE'LERİ ÖNBELLEĞE AL
     const templates = {
         home: document.getElementById('home-template').innerHTML,
         bot: document.getElementById('bot-template')?.innerHTML,
@@ -69,19 +70,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // SAYFA DEĞİŞTİRME FONKSİYONU
     const switchPage = (hash) => {
-        const page = hash.substring(1) || 'home';
-        if (!templates[page]) return;
+        // Hash boşsa veya sadece '#' ise 'home' sayfasına yönlendir.
+        const page = (hash || '#home').substring(1) || 'home';
+
+        if (!templates[page] || !mainContent) {
+            console.error(`Template veya main content bulunamadı: ${page}`);
+            return;
+        }
         
         mainContent.innerHTML = templates[page];
-        updateDynamicContent();
-        addEventListenersForPage(page);
+        updateDynamicContent(); // Bot bilgilerini güncelle
+        addEventListenersForPage(page); // Yeni sayfanın butonları için event listener ekle
 
-        if (page === 'streamer') socket.emit('get-streamer-bots');
+        // Eğer streamer sayfasına geçildiyse bot listesini sunucudan iste
+        if (page === 'streamer') {
+            socket.emit('get-streamer-bots');
+        }
         
-        navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${page}`));
+        // Menüdeki aktif linki güncelle
+        navLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === `#${page}`);
+        });
     };
-
+    
+    // HER SAYFA İÇİN ÖZEL EVENT LISTENER'LARI EKLEYEN FONKSİYON
     const addEventListenersForPage = (page) => {
         switch (page) {
             case 'home':
@@ -124,7 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('start-dm-clean-btn')?.addEventListener('click', handleDmClean);
                 break;
             case 'tools':
-                initializeTabs(document.getElementById('tools'));
+                // Araçlar sayfasındaki tabları başlat
+                const toolsContainer = document.getElementById('tools');
+                if (toolsContainer) initializeTabs(toolsContainer);
+                
                 document.getElementById('ghost-ping-btn')?.addEventListener('click', handleGhostPing);
                 document.getElementById('start-typing-btn')?.addEventListener('click', handleTyping('start'));
                 document.getElementById('stop-typing-btn')?.addEventListener('click', handleTyping('stop'));
@@ -144,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
+    // SOCKET.IO EVENTLERİ
     socket.on('connect', () => { if(connectionStatusText) connectionStatusText.textContent = 'Bağlandı'; });
     socket.on('disconnect', () => { if(connectionStatusText) connectionStatusText.textContent = 'Bağlantı Kesildi'; });
     socket.on('bot-info', (data) => { botInfo = data; updateDynamicContent(); });
@@ -151,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('spam-status-change', (isActive) => updateToggleButton(document.getElementById('spam-btn'), isActive, "Spam'ı Durdur", "Spam'ı Başlat"));
     socket.on('streamer-status-update', renderStreamerBots);
     
+    // KONSOL LOGLARI VE DURUM GÜNCELLEMELERİ İÇİN GENEL FONKSİYON
     const setupConsole = (logEvent, statusEvent, elements) => {
         socket.on(logEvent, (data) => {
             const consoleOutput = document.getElementById(elements.console);
@@ -164,25 +183,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const startBtn = document.getElementById(elements.start);
             const stopBtn = document.getElementById(elements.stop);
             const installBtn = document.getElementById(elements.install);
-            if (startBtn && stopBtn) {
-                startBtn.disabled = isRunning;
-                stopBtn.disabled = !isRunning;
-                if(installBtn) installBtn.disabled = isRunning;
-                if(elements.commandInput) document.getElementById(elements.commandInput).disabled = !isRunning;
-                if(elements.commandBtn) document.getElementById(elements.commandBtn).disabled = !isRunning;
-                if(elements.setup) document.getElementById(elements.setup).disabled = isRunning;
-            }
+            const commandInput = document.getElementById(elements.commandInput);
+            const commandBtn = document.getElementById(elements.commandBtn);
+            const setupBtn = document.getElementById(elements.setup);
+            
+            if (startBtn) startBtn.disabled = isRunning;
+            if (stopBtn) stopBtn.disabled = !isRunning;
+            if (installBtn) installBtn.disabled = isRunning;
+            if (commandInput) commandInput.disabled = !isRunning;
+            if (commandBtn) commandBtn.disabled = !isRunning;
+            if (setupBtn) setupBtn.disabled = isRunning;
         });
     };
 
-    setupConsole('bot:log', 'bot:status', {
-        console: 'bot-console-output', start: 'bot-start-btn', stop: 'bot-stop-btn',
-        install: 'bot-install-btn', commandInput: 'bot-command-input', commandBtn: 'bot-command-send-btn'
-    });
-    setupConsole('owo:log', 'owo:status', {
-        console: 'owo-console-output', start: 'owo-start-btn', stop: 'owo-stop-btn',
-        install: 'owo-install-btn', setup: 'owo-setup-btn'
-    });
+    // Bot ve OwO için konsolları ayarla
+    setupConsole('bot:log', 'bot:status', { console: 'bot-console-output', start: 'bot-start-btn', stop: 'bot-stop-btn', install: 'bot-install-btn', commandInput: 'bot-command-input', commandBtn: 'bot-command-send-btn' });
+    setupConsole('owo:log', 'owo:status', { console: 'owo-console-output', start: 'owo-start-btn', stop: 'owo-stop-btn', install: 'owo-install-btn', setup: 'owo-setup-btn' });
 
     socket.on('owo:filecontent', ({ content }) => {
         const fileContentEl = document.getElementById('owo-file-content');
@@ -190,21 +206,26 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Dosya içeriği başarıyla yüklendi.', 'success');
     });
     
+    // SAYFA YÖNLENDİRME EVENTLERİ
     navLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; }));
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
-    switchPage(window.location.hash || '#home');
+    
+    // DÜZELTME: SAYFA İLK YÜKLENDİĞİNDE DOĞRU İÇERİĞİ GÖSTER
+    switchPage(window.location.hash);
 
+    // DİNAMİK İÇERİKLERİ GÜNCELLE (BOT AVATAR, TAG VS.)
     const updateDynamicContent = () => {
-        if (botInfo.tag) {
-            const userTag = document.getElementById('user-tag');
-            const userId = document.getElementById('user-id');
-            const userAvatar = document.getElementById('user-avatar');
-            if(userTag) userTag.textContent = botInfo.tag;
-            if(userId) userId.textContent = botInfo.id;
-            if(userAvatar) userAvatar.src = botInfo.avatar;
-        }
+        const userTag = document.getElementById('user-tag');
+        const userId = document.getElementById('user-id');
+        const userAvatar = document.getElementById('user-avatar');
+
+        if (botInfo.tag && userTag) userTag.textContent = botInfo.tag;
+        if (botInfo.id && userId) userId.textContent = botInfo.id;
+        if (botInfo.avatar && userAvatar) userAvatar.src = botInfo.avatar;
     };
     
+    // --- EVENT HANDLER FONKSİYONLARI ---
+
     const handleBotCommandSend = () => {
         const input = document.getElementById('bot-command-input');
         if (input && input.value) {
@@ -264,12 +285,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleVoiceControl = (action) => {
-        const channelId = document.getElementById('voice-channel-id')?.value;
+        const channelIdInput = document.getElementById('voice-channel-id');
+        const channelId = channelIdInput ? channelIdInput.value : null;
         socket.emit('voice-control', { action, channelId });
     };
 
     const handleAfkToggle = (e) => {
         const button = e.target.closest('.toggle-switch');
+        if (!button) return;
         const wantsToEnable = button.dataset.status !== 'true';
         socket.emit('toggle-afk', wantsToEnable);
         updateToggleButton(button, wantsToEnable);
@@ -314,7 +337,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleSpamToggle = (e) => {
-        const isSpamming = e.target.dataset.status === 'true';
+        const button = e.target.closest('button');
+        if (!button) return;
+        const isSpamming = button.dataset.status === 'true';
         const data = {
             token: document.getElementById('spammer-token').value,
             userId: document.getElementById('spammer-user-id').value,
@@ -328,4 +353,4 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('toggle-spam', data);
     };
 });
-                   
+                       
