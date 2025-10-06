@@ -20,10 +20,15 @@ const executeRaid = require('./raid.js');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const publicPath = path.join(__dirname, 'public');
-app.use('/public', express.static(publicPath));
+
+// 'public' adında bir klasör oluşturup index.html, style.css, script.js ve diğer varlıkları içine taşıyın.
+const publicPath = path.join(__dirname, 'public'); 
 app.use(express.static(publicPath));
-app.get('*', (req, res) => res.sendFile(path.join(publicPath, 'index.html')));
+// Ana sayfa yönlendirmesi
+app.get('*', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+});
+
 
 // ---- YÖNETİLECEK BOT BÖLÜMLERİ ----
 let botProcess = null;
