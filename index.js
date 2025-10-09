@@ -16,6 +16,8 @@ const executeRaid = require('./commands/raid.js');
 const cloneServer = require('./commands/server-cloner.js');
 const { startSpam, stopSpam } = require('./commands/dm-spammer.js');
 const cleanDmMessages = require('./commands/dm-cleaner.js');
+// YENİ RPC MODÜLÜNÜN İÇE AKTARILMASI
+const { setRichPresence, stopRichPresence, setPredefinedRpc } = require('./commands/rpc-manager.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -268,6 +270,43 @@ function loginPanelClient(token) {
                 }
             });
         }
+
+        // --- YENİ EKLENEN RPC KOMUTLARI ---
+        if (command === "bleachrpc") {
+            const imageKey = args[0];
+            if (!imageKey) {
+                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.bleachrpc benim_gifim`').catch(console.error);
+            }
+            setPredefinedRpc(panelClient, { largeImageKey: imageKey });
+            msg.edit(`✅ **Bleach RPC** başarıyla ayarlandı! Profiline bakabilirsin.`).catch(console.error);
+        }
+        
+        if (command === "setrpc") {
+            try {
+                const commandArgs = msg.content.slice(prefix.length + command.length).trim().match(/"(.*?)"/g);
+                if (!commandArgs || commandArgs.length < 3) {
+                    return msg.edit(`**Hatalı Kullanım!**\nDoğrusu: \`.setrpc "Başlık" "Alt Başlık" "resim_anahtarı" "Resim Metni"\``).catch(console.error);
+                }
+                const options = {
+                    details: commandArgs[0].replace(/"/g, ''),
+                    state: commandArgs[1].replace(/"/g, ''),
+                    largeImageKey: commandArgs[2].replace(/"/g, ''),
+                    largeImageText: commandArgs[3] ? commandArgs[3].replace(/"/g, '') : "Stark's Industries"
+                };
+                setRichPresence(panelClient, options);
+                msg.edit(`✅ RPC başarıyla ayarlandı: **${options.details}**`).catch(console.error);
+            } catch (e) {
+                console.error("[RPC HATA]", e);
+                msg.edit("RPC ayarlanırken bir hata oluştu. Komutu doğru formatta girdiğinizden emin olun.").catch(console.error);
+            }
+        }
+
+        if (command === "stoprpc") {
+            stopRichPresence(panelClient);
+            msg.edit("✅ RPC başarıyla temizlendi.").catch(console.error);
+        }
+        // --- RPC KOMUTLARI SONU ---
+
     });
     panelClient.login(token).catch(error => {
         console.error('[Web Panel] Giriş hatası:', error.message);
