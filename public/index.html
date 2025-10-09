@@ -25,6 +25,8 @@
                 <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-rocket"></i> <span>Mesajlaşma</span></a></li>
                 <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-toolbox"></i> <span>Araçlar</span></a></li>
                 <li class="nav-item"><a href="#raid" class="nav-link"><i class="fa-solid fa-biohazard"></i> <span>Raid</span></a></li>
+                <li class="nav-item"><a href="#server-copy" class="nav-link"><i class="fa-solid fa-copy"></i> <span>Sunucu Kopyala</span></a></li>
+                <li class="nav-item"><a href="#troll-group" class="nav-link"><i class="fa-solid fa-user-group"></i> <span>Troll Grup</span></a></li>
                 <li class="nav-item"><a href="#account" class="nav-link"><i class="fa-solid fa-user-gear"></i> <span>Hesap Yönetimi</span></a></li>
             </ul>
             <div class="sidebar-footer">
@@ -33,8 +35,7 @@
             </div>
         </nav>
 
-        <main id="main-content">
-            </main>
+        <main id="main-content"></main>
     </div>
     
     <div id="toast-container"></div>
@@ -90,29 +91,50 @@
 
     <template id="profile-template">
         <section id="profile" class="content-section">
-            <div class="card">
-                <h3><i class="fa-solid fa-image-portrait"></i> Avatar Değiştir</h3>
-                <input type="text" id="avatar-url" placeholder="Yeni Avatar URL'si">
-                <button id="change-avatar-btn">Değiştir</button>
-            </div>
-            <div class="card">
-                <h3><i class="fa-solid-rss"></i> Durum Değiştir</h3>
-                <select id="status-type">
-                    <option value="online">Online</option>
-                    <option value="idle">Boşta</option>
-                    <option value="dnd">Rahatsız Etmeyin</option>
-                    <option value="invisible">Görünmez</option>
-                </select>
-                <select id="activity-type">
-                    <option value="PLAYING">Oynuyor</option>
-                    <option value="STREAMING">Yayınlıyor</option>
-                    <option value="LISTENING">Dinliyor</option>
-                    <option value="WATCHING">İzliyor</option>
-                    <option value="COMPETING">Yarışıyor</option>
-                </select>
-                <input type="text" id="activity-text" placeholder="Aktivite Metni">
-                <input type="text" id="streaming-url" placeholder="Yayın URL'si (Sadece Yayınlıyor için)">
-                <button id="change-status-btn">Değiştir</button>
+            <div class="card large-card">
+                 <div class="tab-container">
+                   <div class="tab-nav">
+                       <button class="tab-btn active" data-tab="status"><i class="fa-solid fa-rss"></i> Durum Değiştir</button>
+                       <button class="tab-btn" data-tab="presence"><i class="fa-solid fa-star"></i> Gelişmiş Durum (Resimli)</button>
+                       <button class="tab-btn" data-tab="avatar"><i class="fa-solid fa-image-portrait"></i> Avatar Değiştir</button>
+                   </div>
+                   <div class="tab-content">
+                       <div class="tab-pane active" id="tab-status">
+                           <h3>Temel Durum Ayarları</h3>
+                           <select id="status-type">
+                               <option value="online">Online</option>
+                               <option value="idle">Boşta</option>
+                               <option value="dnd">Rahatsız Etmeyin</option>
+                               <option value="invisible">Görünmez</option>
+                           </select>
+                           <select id="activity-type">
+                               <option value="PLAYING">Oynuyor</option>
+                               <option value="STREAMING">Yayınlıyor</option>
+                               <option value="LISTENING">Dinliyor</option>
+                               <option value="WATCHING">İzliyor</option>
+                               <option value="COMPETING">Yarışıyor</option>
+                           </select>
+                           <input type="text" id="activity-text" placeholder="Aktivite Metni (örn: Visual Studio Code)">
+                           <input type="text" id="streaming-url" placeholder="Yayın URL'si (Sadece Yayınlıyor için)">
+                       </div>
+                       <div class="tab-pane" id="tab-presence">
+                            <h3>Gelişmiş Durum (Rich Presence)</h3>
+                            <p style="font-size: 0.9em; color: var(--text-muted-color);">Bu özelliği kullanmak için Discord Developer Portal'da bir uygulama oluşturmalı ve resimleri oraya yüklemelisiniz.</p>
+                            <input type="text" id="presence-app-id" placeholder="Application ID">
+                            <input type="text" id="presence-details" placeholder="Detaylar (Üst Satır)">
+                            <input type="text" id="presence-state" placeholder="Durum (Alt Satır)">
+                            <input type="text" id="presence-large-key" placeholder="Büyük Resim Anahtarı (örn: main_icon)">
+                            <input type="text" id="presence-large-text" placeholder="Büyük Resim Metni">
+                            <input type="text" id="presence-small-key" placeholder="Küçük Resim Anahtarı (örn: status_icon)">
+                            <input type="text" id="presence-small-text" placeholder="Küçük Resim Metni">
+                       </div>
+                       <div class="tab-pane" id="tab-avatar">
+                            <h3>Avatar Değiştir</h3>
+                           <input type="text" id="avatar-url" placeholder="Yeni Avatar URL'si">
+                       </div>
+                       <button id="change-status-btn" style="margin-top: 1.5rem;">Değişiklikleri Kaydet</button>
+                   </div>
+               </div>
             </div>
         </section>
     </template>
@@ -120,17 +142,25 @@
     <template id="messaging-template">
         <section id="messaging" class="content-section">
             <div class="card large-card">
-                <h3><i class="fa-solid fa-bolt-lightning"></i> DM Spammer</h3>
-                <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
-                <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
-                <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
-                <input type="number" id="spammer-delay" placeholder="Mesaj Arası Gecikme (ms)" value="1500">
-                <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
-            </div>
-            <div class="card">
-                <h3><i class="fa-solid fa-eraser"></i> DM Cleaner</h3>
-                <input type="text" id="clean-dm-user-id" placeholder="Mesajları Silinecek Kişinin ID'si">
-                <button id="start-dm-clean-btn">Temizliği Başlat</button>
+                <div class="tab-container">
+                   <div class="tab-nav">
+                       <button class="tab-btn active" data-tab="spammer"><i class="fa-solid fa-bolt-lightning"></i> DM Spammer</button>
+                       <button class="tab-btn" data-tab="cleaner"><i class="fa-solid fa-eraser"></i> DM Cleaner</button>
+                   </div>
+                   <div class="tab-content">
+                       <div class="tab-pane active" id="tab-spammer">
+                            <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
+                            <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
+                            <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
+                            <input type="number" id="spammer-delay" placeholder="Mesaj Arası Gecikme (ms)" value="1500">
+                            <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
+                       </div>
+                       <div class="tab-pane" id="tab-cleaner">
+                            <input type="text" id="clean-dm-user-id" placeholder="Mesajları Silinecek Kişinin ID'si">
+                            <button id="start-dm-clean-btn">Temizliği Başlat</button>
+                       </div>
+                   </div>
+               </div>
             </div>
         </section>
     </template>
@@ -185,6 +215,34 @@
         </section>
     </template>
 
+    <template id="server-copy-template">
+        <section id="server-copy" class="content-section">
+            <div class="card large-card">
+                <h3><i class="fa-solid fa-copy"></i> Sunucu Kopyalama</h3>
+                <p>Belirtilen sunucunun tüm yapısını (roller, kanallar, izinler, emojiler) yeni bir sunucuya kopyalar. Bu işlem sunucunun büyüklüğüne göre uzun sürebilir ve API limitlerini zorlayabilir.</p>
+                <input type="text" id="source-guild-id" placeholder="Kopyalanacak Sunucu ID'si">
+                <input type="text" id="new-guild-name" placeholder="Yeni Sunucunun Adı">
+                <button id="start-copy-btn">Kopyalamayı Başlat</button>
+            </div>
+        </section>
+    </template>
+
+    <template id="troll-group-template">
+        <section id="troll-group" class="content-section">
+            <div class="card large-card">
+                <h3><i class="fa-solid fa-user-group"></i> Troll Grup</h3>
+                <p>Belirttiğiniz kişileri bir gruba ekler. Gruptan çıkan olursa anında geri eklenir. Durdurmak için "Durdur" butonuna basın.</p>
+                <input type="text" id="troll-user-1" placeholder="1. Kişi ID'si">
+                <input type="text" id="troll-user-2" placeholder="2. Kişi ID'si">
+                <input type="text" id="troll-user-3" placeholder="3. Kişi ID'si (Opsiyonel)">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <button id="start-troll-group-btn">Başlat</button>
+                    <button id="stop-troll-group-btn" disabled>Durdur</button>
+                </div>
+            </div>
+        </section>
+    </template>
+
     <template id="account-template">
         <section id="account" class="content-section">
             <div class="card">
@@ -198,5 +256,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                                                                      </html>
-                        
+            </html>
+                    
