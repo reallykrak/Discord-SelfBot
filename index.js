@@ -16,8 +16,8 @@ const executeRaid = require('./commands/raid.js');
 const cloneServer = require('./commands/server-cloner.js');
 const { startSpam, stopSpam } = require('./commands/dm-spammer.js');
 const cleanDmMessages = require('./commands/dm-cleaner.js');
-// YENİ RPC MODÜLÜNÜN İÇE AKTARILMASI
-const { setRichPresence, stopRichPresence, setPredefinedRpc } = require('./commands/rpc-manager.js');
+// YENİ RPC MODÜLÜNÜN İÇE AKTARILMASI (FONKSİYON İSİMLERİ DEĞİŞTİ)
+const { stopRichPresence, setListeningRpc, setWatchingRpc } = require('./commands/rpc-manager.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -271,36 +271,29 @@ function loginPanelClient(token) {
             });
         }
 
-        // --- YENİ EKLENEN RPC KOMUTLARI ---
-        if (command === "bleachrpc") {
+        // --- YENİ RPC KOMUTLARI ---
+        
+        // ZAMANLAYICILI RPC İÇİN KOMUT ("Spotify dinliyor" yazar)
+        if (command === "twdlisten") {
             const imageKey = args[0];
             if (!imageKey) {
-                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.bleachrpc benim_gifim`').catch(console.error);
+                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdlisten twd_resim`').catch(console.error);
             }
-            setPredefinedRpc(panelClient, { largeImageKey: imageKey });
-            msg.edit(`✅ **Bleach RPC** başarıyla ayarlandı! Profiline bakabilirsin.`).catch(console.error);
+            setListeningRpc(panelClient, { largeImageKey: imageKey });
+            msg.edit(`✅ **Zamanlayıcılı** "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
         }
         
-        if (command === "setrpc") {
-            try {
-                const commandArgs = msg.content.slice(prefix.length + command.length).trim().match(/"(.*?)"/g);
-                if (!commandArgs || commandArgs.length < 3) {
-                    return msg.edit(`**Hatalı Kullanım!**\nDoğrusu: \`.setrpc "Başlık" "Alt Başlık" "resim_anahtarı" "Resim Metni"\``).catch(console.error);
-                }
-                const options = {
-                    details: commandArgs[0].replace(/"/g, ''),
-                    state: commandArgs[1].replace(/"/g, ''),
-                    largeImageKey: commandArgs[2].replace(/"/g, ''),
-                    largeImageText: commandArgs[3] ? commandArgs[3].replace(/"/g, '') : "Stark's Industries"
-                };
-                setRichPresence(panelClient, options);
-                msg.edit(`✅ RPC başarıyla ayarlandı: **${options.details}**`).catch(console.error);
-            } catch (e) {
-                console.error("[RPC HATA]", e);
-                msg.edit("RPC ayarlanırken bir hata oluştu. Komutu doğru formatta girdiğinizden emin olun.").catch(console.error);
+        // "İZLİYOR" YAZAN RPC İÇİN KOMUT (Zamanlayıcı olmaz)
+        if (command === "twdwatch") {
+            const imageKey = args[0];
+            if (!imageKey) {
+                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdwatch twd_resim`').catch(console.error);
             }
+            setWatchingRpc(panelClient, { largeImageKey: imageKey });
+            msg.edit(`✅ **"İzliyor"** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
         }
 
+        // TÜM RPC'LERİ DURDURMAK İÇİN KOMUT
         if (command === "stoprpc") {
             stopRichPresence(panelClient);
             msg.edit("✅ RPC başarıyla temizlendi.").catch(console.error);
