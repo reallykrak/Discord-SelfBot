@@ -147,8 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('streamer-status-update', renderStreamerBots);
     
     socket.on('troll-group-status', ({ isActive }) => {
-        document.getElementById('start-troll-group-btn').disabled = isActive;
-        document.getElementById('stop-troll-group-btn').disabled = !isActive;
+        const startBtn = document.getElementById('start-troll-group-btn');
+        const stopBtn = document.getElementById('stop-troll-group-btn');
+        if (startBtn) startBtn.disabled = isActive;
+        if (stopBtn) stopBtn.disabled = !isActive;
     });
 
     socket.on('bot:log', (data) => {
@@ -160,11 +162,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('bot:status', ({ isRunning }) => {
-        document.getElementById('bot-start-btn').disabled = isRunning;
-        document.getElementById('bot-stop-btn').disabled = !isRunning;
-        document.getElementById('bot-install-btn').disabled = isRunning;
-        document.getElementById('bot-command-input').disabled = !isRunning;
-        document.getElementById('bot-command-send-btn').disabled = !isRunning;
+        const startBtn = document.getElementById('bot-start-btn');
+        const stopBtn = document.getElementById('bot-stop-btn');
+        const installBtn = document.getElementById('bot-install-btn');
+        const cmdInput = document.getElementById('bot-command-input');
+        const cmdSendBtn = document.getElementById('bot-command-send-btn');
+
+        if(startBtn) startBtn.disabled = isRunning;
+        if(stopBtn) stopBtn.disabled = !isRunning;
+        if(installBtn) installBtn.disabled = isRunning;
+        if(cmdInput) cmdInput.disabled = !isRunning;
+        if(cmdSendBtn) cmdSendBtn.disabled = !isRunning;
     });
 
     function updateDynamicContent() {
@@ -216,21 +224,23 @@ document.addEventListener('DOMContentLoaded', () => {
         bots.forEach(bot => {
             const isOnline = bot.status === 'online';
             const statusColor = isOnline ? 'var(--success-color)' : 'var(--text-muted-color)';
-            const botCard = `<div class="card" style="flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">...</div>`; // Kısaltıldı, kod aynı
-            container.innerHTML += botCard.replace('...', `
-                <div style="display: flex; align-items: center; gap: 1rem; min-width: 250px; flex-grow: 1;">
-                    <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 40px; height: 40px; border-radius: 50%;">
-                    <div>
-                        <strong style="white-space: nowrap;">${bot.tag || 'Çevrimdışı'}</strong>
-                        <p style="font-size: 0.8em; color: ${statusColor};">${bot.statusText || 'Durduruldu'}</p>
+            const botCardHTML = `
+                <div class="card" style="flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; min-width: 250px; flex-grow: 1;">
+                        <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 40px; height: 40px; border-radius: 50%;">
+                        <div>
+                            <strong style="white-space: nowrap;">${bot.tag || 'Çevrimdışı'}</strong>
+                            <p style="font-size: 0.8em; color: ${statusColor};">${bot.statusText || 'Durduruldu'}</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 150px;">
+                        <button style="border-color: var(--success-color);" data-action="start-stream" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Yayın Başlat</button>
+                        <button style="border-color: var(--primary-color);" data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
+                        <button style="border-color: var(--error-color);" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
                     </div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 150px;">
-                    <button style="border-color: var(--success-color);" data-action="start-stream" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Yayın Başlat</button>
-                    <button style="border-color: var(--primary-color);" data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
-                    <button style="border-color: var(--error-color);" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
-                </div>
-            `);
+            `;
+            container.innerHTML += botCardHTML;
         });
     };
 
@@ -264,9 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 smallImageText: document.getElementById('presence-small-text').value,
             },
         };
-        if (!data.activity.name && data.activity.details) {
-            data.activity.name = data.activity.details;
-        }
         socket.emit('change-status', data);
     };
 
@@ -290,16 +297,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = e.target.closest('button');
         if (!button) return;
         const isSpamming = button.dataset.status === 'true';
+        
         const data = {
             token: document.getElementById('spammer-token').value,
             userId: document.getElementById('spammer-user-id').value,
             message: document.getElementById('spammer-message').value,
             delay: document.getElementById('spammer-delay').value,
+            isSpamming: isSpamming
         };
+    
         if (!isSpamming) {
             if (!data.token || !data.userId || !data.message) return showToast('Lütfen tüm DM Spammer alanlarını doldurun.', 'error');
             if (!data.delay || parseInt(data.delay) < 500) return showToast('API limitlerini önlemek için gecikme en az 500ms olmalıdır.', 'error');
         }
+
         socket.emit('toggle-spam', data);
     };
     
@@ -327,4 +338,3 @@ document.addEventListener('DOMContentLoaded', () => {
     switchPage(window.location.hash);
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
 });
-            
