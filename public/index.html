@@ -44,7 +44,7 @@
             <div class="card welcome-card large-card">
                 <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar" style="width: 100px; height: 100px; border-radius: 50%;">
                 <h2 id="user-tag">Yükleniyor...</h2>
-                <p class="user-id-p">ID: <span id="user-id">...</span></p>
+                <p>ID: <span id="user-id">...</span></p>
                 <p>Kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
             </div>
              <div class="card">
@@ -65,14 +65,14 @@
                 <div class="bot-controls-container">
                     <button id="bot-install-btn">NPM Install</button>
                     <button id="bot-start-btn">Botu Başlat</button>
-                    <button id="bot-stop-btn">Botu Durdur</button>
+                    <button id="bot-stop-btn" disabled>Botu Durdur</button>
                 </div>
                 <div class="console-wrapper">
                     <pre id="bot-console-output">Bot konsoluna hoş geldiniz...</pre>
                 </div>
                 <div class="console-input-container">
-                    <input type="text" id="bot-command-input" placeholder="Çalışan bota komut gönder...">
-                    <button id="bot-command-send-btn">Gönder</button>
+                    <input type="text" id="bot-command-input" placeholder="Çalışan bota komut gönder..." disabled>
+                    <button id="bot-command-send-btn" disabled>Gönder</button>
                 </div>
             </div>
         </section>
@@ -198,5 +198,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                </html>
+                                                                      </html>
                         
