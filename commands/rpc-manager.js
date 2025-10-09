@@ -4,8 +4,12 @@
  */
 function stopRichPresence(client) {
     if (!client || !client.user) return;
-    client.user.setActivity(null); // Aktiviteyi null yaparak temizler
-    console.log('[RPC] Rich Presence temizlendi.');
+    try {
+        client.user.setActivity(null); // Aktiviteyi null yaparak temizler
+        console.log('[RPC] Rich Presence temizlendi.');
+    } catch (error) {
+        console.error('[RPC] RPC temizlenirken hata oluştu:', error);
+    }
 }
 
 /**
@@ -32,8 +36,12 @@ function setRichPresence(client, options) {
         type: 'LISTENING',
         name: 'Spotify',
     };
-    client.user.setActivity(activity).catch(console.error);
-    console.log(`[RPC] Rich Presence ayarlandı: ${options.details}`);
+    try {
+        client.user.setActivity(activity);
+        console.log(`[RPC] Rich Presence ayarlandı: ${options.details}`);
+    } catch (error) {
+        console.error('[RPC] RPC ayarlanırken hata oluştu:', error);
+    }
 }
 
 /**
@@ -70,8 +78,12 @@ function setPredefinedRpc(client, options) {
         name: 'Spotify',
     };
 
-    client.user.setActivity(activity).catch(console.error);
-    console.log(`[RPC] Önceden tanımlanmış 'Bleach' RPC ayarlandı.`);
+    try {
+        client.user.setActivity(activity);
+        console.log(`[RPC] Önceden tanımlanmış 'Bleach' RPC ayarlandı.`);
+    } catch (error) {
+        console.error('[RPC] Önceden tanımlanmış RPC ayarlanırken hata oluştu:', error);
+    }
 }
 
 module.exports = {
