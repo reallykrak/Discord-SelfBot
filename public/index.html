@@ -20,7 +20,6 @@
             <ul id="nav-menu">
                 <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-solar-panel"></i> <span>Ana Sayfa</span></a></li>
                 <li class="nav-item"><a href="#bot" class="nav-link"><i class="fa-solid fa-robot"></i> <span>Bot Yönetimi</span></a></li>
-                <li class="nav-item"><a href="#owo" class="nav-link"><i class="fa-solid fa-cat"></i> <span>OwO Bot</span></a></li>
                 <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-satellite-dish"></i> <span>Yayın Yönetimi</span></a></li>
                 <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-id-card"></i> <span>Profil Ayarları</span></a></li>
                 <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-rocket"></i> <span>Mesajlaşma</span></a></li>
@@ -74,38 +73,6 @@
                 <div class="console-input-container">
                     <input type="text" id="bot-command-input" placeholder="Çalışan bota komut gönder...">
                     <button id="bot-command-send-btn">Gönder</button>
-                </div>
-            </div>
-        </section>
-    </template>
-
-    <template id="owo-template">
-        <section id="owo" class="content-section">
-            <div class="card large-card">
-                <h3><i class="fa-solid fa-cat"></i> OwO Bot Yönetimi</h3>
-                <p>Bu bölümden GitHub'daki OwO bot altyapınızı yönetebilirsiniz. Bot dosyaları <strong>'owo-bot'</strong> adında bir klasörde saklanacaktır.</p>
-                
-                <div class="bot-controls-container">
-                    <input type="text" id="owo-repo-url" placeholder="GitHub Repository URL'nizi Buraya Yapıştırın">
-                    <button id="owo-setup-btn">Kurulumu Başlat (Git Clone)</button>
-                </div>
-                 <div class="bot-controls-container" style="margin-top: 1rem;">
-                    <button id="owo-install-btn">NPM Install</button>
-                    <button id="owo-start-btn">Botu Başlat (NPM Start)</button>
-                    <button id="owo-stop-btn">Botu Durdur</button>
-                </div>
-
-                <h4 style="margin-top: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Dosya Düzenleyici (Nano)</h4>
-                <div class="console-input-container" style="margin-top: 1rem;">
-                    <input type="text" id="owo-filename" placeholder="örn: config.js" value="config.js">
-                    <button id="owo-load-file-btn">Dosyayı Oku</button>
-                    <button id="owo-save-file-btn">Dosyayı Kaydet</button>
-                </div>
-                <textarea id="owo-file-content" placeholder="Dosya içeriği burada görünecek..."></textarea>
-                
-                <h4 style="margin-top: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">OwO Bot Konsolu</h4>
-                <div class="console-wrapper" style="margin-top: 1rem;">
-                    <pre id="owo-console-output">OwO bot konsoluna hoş geldiniz...</pre>
                 </div>
             </div>
         </section>
@@ -231,5 +198,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                                         </html>
-    
+                </html>
+                        
