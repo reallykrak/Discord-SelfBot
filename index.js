@@ -9,10 +9,10 @@ const fs = require('fs');
 const { readFileSync } = require("fs");
 const play = require("play-dl");
 const express = require('express');
-const http = require('http'); // <-- HATA BURADAYDI, DÜZELTİLDİ
+const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
-const { spawn, exec } = require('child_process');
+const { spawn } = require('child_process');
 const config = require('./config.js');
 const executeRaid = require('./raid.js');
 
@@ -34,11 +34,8 @@ app.get('*', (req, res) => {
 let botProcess = null;
 const botWorkingDirectory = path.join(__dirname, 'bot');
 
-let owoProcess = null;
-const owoWorkingDirectory = path.join(__dirname, 'owo-bot');
-
 // Klasörlerin varlığını kontrol et ve oluştur
-[botWorkingDirectory, owoWorkingDirectory, path.join(__dirname, 'music')].forEach(dir => {
+[botWorkingDirectory, path.join(__dirname, 'music')].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
         console.log(`[Manager] "${path.basename(dir)}" klasörü oluşturuldu.`);
@@ -494,7 +491,6 @@ io.on('connection', (socket) => {
         socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
     }
     socket.emit('bot:status', { isRunning: !!botProcess });
-    socket.emit('owo:status', { isRunning: !!owoProcess });
 
     // ---- Genel Bot Yönetimi ----
     socket.on('bot:install', () => {
@@ -531,74 +527,6 @@ io.on('connection', (socket) => {
         } else {
             socket.emit('bot:log', 'Komut göndermek için önce botu başlatmalısınız.\n');
         }
-    });
-
-    // ---- YENİ: OwO Bot Yönetimi ----
-    socket.on('owo:setup', ({ repoUrl }) => {
-        if (!repoUrl) return socket.emit('owo:log', '[HATA] Geçerli bir GitHub repository URLsi girmelisiniz.\n');
-        
-        socket.emit('owo:log', `[Kurulum] Mevcut 'owo-bot' klasörü temizleniyor...\n`);
-        exec(`rm -rf ${owoWorkingDirectory} && mkdir ${owoWorkingDirectory}`, (err, stdout, stderr) => {
-            if (err) {
-                socket.emit('owo:log', `[HATA] Klasör temizlenemedi: ${stderr}\n`);
-                return;
-            }
-            socket.emit('owo:log', `[Kurulum] Klasör temizlendi. Proje klonlanıyor...\n`);
-            executeCommand('git', ['clone', repoUrl, '.'], owoWorkingDirectory, socket, 'owo');
-        });
-    });
-
-    socket.on('owo:install', () => {
-        socket.emit('owo:log', 'Bağımlılıklar kuruluyor (npm install)...\n');
-        executeCommand('npm', ['install'], owoWorkingDirectory, socket, 'owo');
-    });
-
-    socket.on('owo:start', () => {
-        if (owoProcess) return socket.emit('owo:log', 'OwO bot zaten çalışıyor!\n');
-        socket.emit('owo:log', 'OwO bot başlatılıyor (npm start)...\n');
-        owoProcess = executeCommand('npm', ['start'], owoWorkingDirectory, socket, 'owo');
-        io.emit('owo:status', { isRunning: true });
-        owoProcess.on('close', (code) => {
-            owoProcess = null;
-            io.emit('owo:status', { isRunning: false });
-        });
-    });
-
-    socket.on('owo:stop', () => {
-        if (owoProcess) {
-            owoProcess.kill();
-            owoProcess = null;
-            io.emit('owo:log', 'OwO bot durduruldu.\n');
-            io.emit('owo:status', { isRunning: false });
-        } else {
-            socket.emit('owo:log', 'OwO bot zaten çalışmıyor.\n');
-        }
-    });
-
-    socket.on('owo:getfile', ({ filename }) => {
-        if (!filename || filename.includes('..')) {
-            return socket.emit('status-update', { message: 'Geçersiz dosya adı.', type: 'error' });
-        }
-        const filePath = path.join(owoWorkingDirectory, filename);
-        fs.readFile(filePath, 'utf8', (err, data) => {
-            if (err) {
-                return socket.emit('status-update', { message: `Dosya okunamadı: ${err.message}`, type: 'error' });
-            }
-            socket.emit('owo:filecontent', { content: data });
-        });
-    });
-
-    socket.on('owo:savefile', ({ filename, content }) => {
-        if (!filename || filename.includes('..')) {
-            return socket.emit('status-update', { message: 'Geçersiz dosya adı.', type: 'error' });
-        }
-        const filePath = path.join(owoWorkingDirectory, filename);
-        fs.writeFile(filePath, content, 'utf8', (err) => {
-            if (err) {
-                return socket.emit('status-update', { message: `Dosya kaydedilemedi: ${err.message}`, type: 'error' });
-            }
-            socket.emit('status-update', { message: `${filename} başarıyla kaydedildi.`, type: 'success' });
-        });
     });
 
     socket.on('start-raid', async (data) => {
