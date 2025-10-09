@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const templates = {
         home: document.getElementById('home-template').innerHTML,
         bot: document.getElementById('bot-template')?.innerHTML,
-        owo: document.getElementById('owo-template')?.innerHTML,
         streamer: document.getElementById('streamer-template').innerHTML,
         profile: document.getElementById('profile-template')?.innerHTML,
         messaging: document.getElementById('messaging-template')?.innerHTML,
@@ -107,25 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('bot-stop-btn')?.addEventListener('click', () => socket.emit('bot:stop'));
                 document.getElementById('bot-command-send-btn')?.addEventListener('click', handleBotCommandSend);
                 break;
-            case 'owo':
-                document.getElementById('owo-setup-btn')?.addEventListener('click', () => {
-                    const repoUrl = document.getElementById('owo-repo-url').value;
-                    if (repoUrl) socket.emit('owo:setup', { repoUrl });
-                    else showToast('Lütfen bir GitHub repository URLsi girin.', 'error');
-                });
-                document.getElementById('owo-install-btn')?.addEventListener('click', () => socket.emit('owo:install'));
-                document.getElementById('owo-start-btn')?.addEventListener('click', () => socket.emit('owo:start'));
-                document.getElementById('owo-stop-btn')?.addEventListener('click', () => socket.emit('owo:stop'));
-                document.getElementById('owo-load-file-btn')?.addEventListener('click', () => {
-                    const filename = document.getElementById('owo-filename').value;
-                    if (filename) socket.emit('owo:getfile', { filename });
-                });
-                document.getElementById('owo-save-file-btn')?.addEventListener('click', () => {
-                    const filename = document.getElementById('owo-filename').value;
-                    const content = document.getElementById('owo-file-content').value;
-                    if (filename) socket.emit('owo:savefile', { filename, content });
-                });
-                break;
             case 'streamer':
                 document.getElementById('streamer-bots-container')?.addEventListener('click', handleStreamerButtonClick);
                 break;
@@ -185,32 +165,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const installBtn = document.getElementById(elements.install);
             const commandInput = document.getElementById(elements.commandInput);
             const commandBtn = document.getElementById(elements.commandBtn);
-            const setupBtn = document.getElementById(elements.setup);
             
             if (startBtn) startBtn.disabled = isRunning;
             if (stopBtn) stopBtn.disabled = !isRunning;
             if (installBtn) installBtn.disabled = isRunning;
             if (commandInput) commandInput.disabled = !isRunning;
             if (commandBtn) commandBtn.disabled = !isRunning;
-            if (setupBtn) setupBtn.disabled = isRunning;
         });
     };
 
-    // Bot ve OwO için konsolları ayarla
+    // Bot için konsolu ayarla
     setupConsole('bot:log', 'bot:status', { console: 'bot-console-output', start: 'bot-start-btn', stop: 'bot-stop-btn', install: 'bot-install-btn', commandInput: 'bot-command-input', commandBtn: 'bot-command-send-btn' });
-    setupConsole('owo:log', 'owo:status', { console: 'owo-console-output', start: 'owo-start-btn', stop: 'owo-stop-btn', install: 'owo-install-btn', setup: 'owo-setup-btn' });
-
-    socket.on('owo:filecontent', ({ content }) => {
-        const fileContentEl = document.getElementById('owo-file-content');
-        if (fileContentEl) fileContentEl.value = content;
-        showToast('Dosya içeriği başarıyla yüklendi.', 'success');
-    });
     
     // SAYFA YÖNLENDİRME EVENTLERİ
     navLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; }));
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
     
-    // DÜZELTME: SAYFA İLK YÜKLENDİĞİNDE DOĞRU İÇERİĞİ GÖSTER
+    // SAYFA İLK YÜKLENDİĞİNDE DOĞRU İÇERİĞİ GÖSTER
     switchPage(window.location.hash);
 
     // DİNAMİK İÇERİKLERİ GÜNCELLE (BOT AVATAR, TAG VS.)
@@ -353,4 +324,4 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('toggle-spam', data);
     };
 });
-                       
+            
