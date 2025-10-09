@@ -3,20 +3,6 @@ const { Collection } = require('discord.js-selfbot-v13');
 // API limitlerine takılmamak için bekleme fonksiyonu
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Discord Kanal Türleri için sabitler
-const CHANNEL_TYPES = {
-    GUILD_TEXT: 0,
-    GUILD_VOICE: 2,
-    GUILD_CATEGORY: 4,
-    GUILD_ANNOUNCEMENT: 5,
-    GUILD_STAGE_VOICE: 13,
-    GUILD_FORUM: 15,
-};
-
-// Klonlanmasını istemediğimiz veya klonlanamayan kanal türleri (örn: thread'ler)
-const IGNORED_CHANNEL_TYPES = [10, 11, 12, 14];
-
-
 const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
     try {
         const sourceGuild = await client.guilds.fetch(sourceGuildId);
@@ -78,15 +64,14 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
         }
         socket.emit('status-update', { message: 'Roller başarıyla kopyalandı.', type: 'success' });
 
-        // 4. Kanalları kopyala (En Akıllı Yöntem)
+        // 4. Kanalları kopyala (HATASI GİDERİLMİŞ YÖNTEM)
         socket.emit('status-update', { message: 'Kanallar ve kategoriler kopyalanıyor...', type: 'info' });
         const categoryMap = new Collection();
         const sourceChannels = [...sourceGuild.channels.cache.values()]
-            .filter(c => !IGNORED_CHANNEL_TYPES.includes(c.type))
             .sort((a, b) => a.position - b.position);
         
         // Önce Kategorileri oluştur
-        for (const sourceChannel of sourceChannels.filter(c => c.type === CHANNEL_TYPES.GUILD_CATEGORY)) {
+        for (const sourceChannel of sourceChannels.filter(c => c.type === 'GUILD_CATEGORY')) {
             try {
                 const permissionOverwrites = sourceChannel.permissionOverwrites?.cache.map(ow => ({
                     id: roleMap.get(ow.id)?.id,
@@ -95,7 +80,7 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
                 })).filter(ow => ow.id);
                 
                 const newCategory = await newGuild.channels.create(sourceChannel.name, {
-                    type: CHANNEL_TYPES.GUILD_CATEGORY,
+                    type: 'GUILD_CATEGORY',
                     permissionOverwrites,
                     position: sourceChannel.position,
                 });
@@ -104,8 +89,8 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
             } catch (e) { console.error(`Kategori kopyalanamadı: ${sourceChannel.name}`, e.message); }
         }
 
-        // Sonra diğer tüm kanalları türlerine göre işle
-        for (const sourceChannel of sourceChannels.filter(c => c.type !== CHANNEL_TYPES.GUILD_CATEGORY)) {
+        // Sonra diğer tüm kanalları türlerine göre doğru şekilde işle
+        for (const sourceChannel of sourceChannels.filter(c => c.type !== 'GUILD_CATEGORY')) {
              try {
                 const permissionOverwrites = sourceChannel.permissionOverwrites?.cache.map(ow => ({
                     id: roleMap.get(ow.id)?.id,
@@ -119,44 +104,41 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
                     permissionOverwrites,
                 };
                 
-                // Kanal türüne göre özellikleri ayarla
+                // KANAL TÜRÜNÜ METİN OLARAK KONTROL ET (DOĞRU YÖNTEM)
                 switch (sourceChannel.type) {
-                    case CHANNEL_TYPES.GUILD_ANNOUNCEMENT: // Duyuru kanalı ise, normal metin kanalı olarak oluştur
-                        channelOptions.type = CHANNEL_TYPES.GUILD_TEXT;
+                    case 'GUILD_NEWS':
+                        channelOptions.type = 'GUILD_TEXT'; // Duyuru kanalını Metin kanalı olarak oluştur
+                        channelOptions.topic = sourceChannel.topic;
+                        channelOptions.nsfw = sourceChannel.nsfw;
+                        socket.emit('status-update', { message: `Duyuru kanalı '${sourceChannel.name}' metin kanalı olarak kopyalandı.`, type: 'warning' });
+                        break;
+                    
+                    case 'GUILD_TEXT':
+                        channelOptions.type = 'GUILD_TEXT';
                         channelOptions.topic = sourceChannel.topic;
                         channelOptions.nsfw = sourceChannel.nsfw;
                         channelOptions.rateLimitPerUser = sourceChannel.rateLimitPerUser;
-                        socket.emit('status-update', { message: `Duyuru kanalı '${sourceChannel.name}' normal metin kanalı olarak kopyalandı.`, type: 'warning' });
                         break;
                     
-                    case CHANNEL_TYPES.GUILD_TEXT:
-                        channelOptions.type = CHANNEL_TYPES.GUILD_TEXT;
-                        channelOptions.topic = sourceChannel.topic;
-                        channelOptions.nsfw = sourceChannel.nsfw;
-                        channelOptions.rateLimitPerUser = sourceChannel.rateLimitPerUser;
-                        break;
-                    
-                    case CHANNEL_TYPES.GUILD_VOICE:
-                        channelOptions.type = CHANNEL_TYPES.GUILD_VOICE;
-                        // Sunucu boost'u kaynaklı bitrate hatasını önle
+                    case 'GUILD_VOICE':
+                        channelOptions.type = 'GUILD_VOICE';
                         channelOptions.bitrate = Math.min(sourceChannel.bitrate, newGuild.maximumBitrate || 96000);
                         channelOptions.userLimit = sourceChannel.userLimit;
                         break;
                         
-                    case CHANNEL_TYPES.GUILD_STAGE_VOICE:
-                         channelOptions.type = CHANNEL_TYPES.GUILD_STAGE_VOICE;
+                    case 'GUILD_STAGE_VOICE':
+                         channelOptions.type = 'GUILD_STAGE_VOICE';
                          channelOptions.bitrate = Math.min(sourceChannel.bitrate, newGuild.maximumBitrate || 96000);
                          channelOptions.userLimit = sourceChannel.userLimit;
                          break;
 
-                    case CHANNEL_TYPES.GUILD_FORUM:
-                        channelOptions.type = CHANNEL_TYPES.GUILD_FORUM;
+                    case 'GUILD_FORUM':
+                        channelOptions.type = 'GUILD_FORUM';
                         channelOptions.topic = sourceChannel.topic;
                         channelOptions.nsfw = sourceChannel.nsfw;
                         break;
                         
-                    default: // Bilinmeyen veya desteklenmeyen türleri atla
-                        console.log(`Atlanan kanal türü: ${sourceChannel.name} (${sourceChannel.type})`);
+                    default: // Desteklenmeyen (thread gibi) kanalları atla
                         continue; 
                 }
 
@@ -169,7 +151,7 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
                     }
                 }
                 await wait(400);
-            } catch(e) { console.error(`Kanal kopyalanamadı: ${sourceChannel.name}`, e.message, e.stack); }
+            } catch(e) { console.error(`Kanal kopyalanamadı: ${sourceChannel.name}`, e.message); }
         }
         socket.emit('status-update', { message: 'Kanallar ve izinler başarıyla kopyalandı.', type: 'success' });
         
@@ -192,4 +174,4 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
 };
 
 module.exports = cloneServer;
-        
+    
