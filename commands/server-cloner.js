@@ -33,7 +33,7 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
             await wait(350);
         }
         for (const role of (await newGuild.roles.fetch()).values()) {
-            if (role.id !== newGuild.id) { // @everyone rolünü silme
+            if (!role.managed && role.id !== newGuild.id) { // @everyone ve entegrasyon rollerini silme
                 await role.delete().catch(() => {});
                 await wait(350);
             }
@@ -43,8 +43,8 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
         socket.emit('status-update', { message: 'Roller kopyalanıyor...', type: 'info' });
         const roleMap = new Collection();
         const sourceRoles = [...sourceGuild.roles.cache.values()]
-            .sort((a, b) => b.position - a.position)
-            .filter(r => r.id !== sourceGuild.id);
+            .sort((a, b) => a.position - b.position)
+            .filter(r => !r.managed && r.id !== sourceGuild.id);
 
         roleMap.set(sourceGuild.id, newGuild.roles.everyone);
 
@@ -64,12 +64,12 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
         }
         socket.emit('status-update', { message: 'Roller başarıyla kopyalandı.', type: 'success' });
 
-        // 4. Kanalları kopyala (ÖNCE KATEGORİLER, SONRA DİĞERLERİ)
+        // 4. Kanalları kopyala (GÜVENİLİR YÖNTEM)
         socket.emit('status-update', { message: 'Kanallar ve kategoriler kopyalanıyor...', type: 'info' });
         const categoryMap = new Collection();
         const sourceChannels = [...sourceGuild.channels.cache.values()].sort((a, b) => a.position - b.position);
         
-        // Önce Kategorileri oluştur
+        // Önce Kategorileri oluştur ve haritaya ekle
         for (const sourceChannel of sourceChannels.filter(c => c.type === 4 /* GuildCategory */)) {
             try {
                 const permissionOverwrites = sourceChannel.permissionOverwrites.cache.map(ow => ({
@@ -88,7 +88,7 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
             } catch (e) { console.error(`Kategori kopyalanamadı: ${sourceChannel.name}`, e.message); }
         }
 
-        // Sonra diğer kanalları oluştur
+        // Sonra diğer kanalları oluştur ve oluşturduktan sonra kategorisine ata
         for (const sourceChannel of sourceChannels.filter(c => c.type !== 4 /* GuildCategory */)) {
              try {
                 const permissionOverwrites = sourceChannel.permissionOverwrites.cache.map(ow => ({
@@ -101,13 +101,24 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
                     type: sourceChannel.type,
                     topic: sourceChannel.topic,
                     nsfw: sourceChannel.nsfw,
+                    rateLimitPerUser: sourceChannel.rateLimitPerUser,
                     position: sourceChannel.position,
                     bitrate: sourceChannel.bitrate,
                     userLimit: sourceChannel.userLimit,
                     permissionOverwrites,
-                    parent: categoryMap.get(sourceChannel.parentId),
                 };
-                await newGuild.channels.create(sourceChannel.name, channelOptions);
+
+                // Kanalı kategorisiz oluştur
+                const newChannel = await newGuild.channels.create(sourceChannel.name, channelOptions);
+                
+                // Eğer kaynak kanalın bir kategorisi varsa, yeni kanalı yeni kategoriye taşı
+                if (sourceChannel.parentId) {
+                    const newParentId = categoryMap.get(sourceChannel.parentId);
+                    if (newParentId) {
+                        await newChannel.setParent(newParentId);
+                    }
+                }
+
                 await wait(350);
             } catch(e) { console.error(`Kanal kopyalanamadı: ${sourceChannel.name}`, e.message); }
         }
@@ -132,4 +143,4 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
 };
 
 module.exports = cloneServer;
-                    
+                                      
