@@ -264,14 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activity: {
                 name: document.getElementById('activity-text').value,
                 type: document.getElementById('activity-type').value,
-                url: document.getElementById('streaming-url').value,
-                applicationId: document.getElementById('presence-app-id').value,
-                details: document.getElementById('presence-details').value,
-                state: document.getElementById('presence-state').value,
-                largeImageKey: document.getElementById('presence-large-key').value,
-                largeImageText: document.getElementById('presence-large-text').value,
-                smallImageKey: document.getElementById('presence-small-key').value,
-                smallImageText: document.getElementById('presence-small-text').value,
+                url: document.getElementById('streaming-url').value
             },
         };
         socket.emit('change-status', data);
@@ -338,3 +331,4 @@ document.addEventListener('DOMContentLoaded', () => {
     switchPage(window.location.hash);
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
 });
+                
