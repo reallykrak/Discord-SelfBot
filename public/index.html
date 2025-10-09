@@ -119,7 +119,10 @@
                        </div>
                        <div class="tab-pane" id="tab-presence">
                             <h3>Gelişmiş Durum (Rich Presence)</h3>
-                            <p style="font-size: 0.9em; color: var(--text-muted-color);">Bu özelliği kullanmak için Discord Developer Portal'da bir uygulama oluşturmalı ve resimleri oraya yüklemelisiniz.</p>
+                            <p style="font-size: 0.9em; color: var(--text-muted-color);">
+                                Bu özelliği kullanmak için Discord Developer Portal'da bir uygulama oluşturmalı ve resimleri oraya yüklemelisiniz.
+                                <strong style="display: block; margin-top: 5px;">Not: "Temel Durum" sekmesindeki "Aktivite Metni" alanı, Rich Presence'ın ana adı (örn: oyun adı) olarak kullanılır ve doldurulmalıdır.</strong>
+                            </p>
                             <input type="text" id="presence-app-id" placeholder="Application ID">
                             <input type="text" id="presence-details" placeholder="Detaylar (Üst Satır)">
                             <input type="text" id="presence-state" placeholder="Durum (Alt Satır)">
@@ -256,5 +259,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-            </html>
-                    
+                                         </html>
+        
