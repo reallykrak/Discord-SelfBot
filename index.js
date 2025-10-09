@@ -1,5 +1,5 @@
 require('./polyfill.js');
-const { Client, MessageEmbed } = require("discord.js-selfbot-v13");
+const { Client } = require("discord.js-selfbot-v13");
 const { DiscordStreamClient } = require("discord-stream-client");
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, NoSubscriberBehavior, VoiceConnectionStatus } = require('@discordjs/voice');
 const fs = require('fs');
@@ -253,25 +253,7 @@ function loginPanelClient(token) {
         if (!msg.content.startsWith(prefix)) return;
         const args = msg.content.slice(prefix.length).trim().split(/ +/g);
         const command = args.shift().toLowerCase();
-        if (command === "help") {
-            try {
-                const helpEmbed = new MessageEmbed()
-                    .setTitle('Stark\'s Industries | Komut Menüsü')
-                    .setDescription('Aşağıda mevcut tüm komutları görebilirsin.')
-                    .setColor('#8A2BE2')
-                    .setTimestamp()
-                    .setFooter({ text: `${panelClient.user.tag}` })
-                    .addFields(
-                        { name: '🛠️ Genel Komutlar', value: '`.help`, `.ping`, `.avatar [@kullanıcı]`', inline: false },
-                        { name: '⚙️ Hesap Yönetimi', value: '`.oynuyor [oyun]`, `.izliyor [film]`, `.dinliyor [şarkı]`, `.yayın [yayın adı]`, `.durum [online/idle/dnd/invisible]`, `.temizle [sayı]`', inline: false },
-                        { name: '💥 Raid & Yönetim Komutları', value: '`.dmall [mesaj]`, `.rol-oluştur [isim] [sayı]`, `.kanal-oluştur [isim] [sayı]`, `.herkesi-banla [sebep]`, `.kanalları-sil`, `.rolleri-sil`', inline: false }
-                    );
-                await msg.delete();
-                await msg.channel.send({ embeds: [helpEmbed] });
-            } catch (e) {
-                console.error("Help komutu başarısız:", e);
-            }
-        }
+        
         if (command === "ping") {
             msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`);
         }
@@ -295,7 +277,7 @@ function loginPanelClient(token) {
 
 io.on('connection', (socket) => {
     console.log('[Web Panel] Bir kullanıcı bağlandı.');
-    panelClient.socket = socket; // Raid modülünün socket'e erişmesi için
+    panelClient.socket = socket; 
     if (panelClient.user) {
         socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
     }
@@ -399,16 +381,12 @@ io.on('connection', (socket) => {
             const presenceData = { status: data.status, activities: [], };
             if (data.activity.name) {
                 const activity = {
-                    name: data.activity.name, type: selectedType, details: data.activity.details,
-                    state: data.activity.state, assets: {}
+                    name: data.activity.name,
+                    type: selectedType,
                 };
-                if (selectedType === 1 && data.activity.url) activity.url = data.activity.url;
-                if (data.activity.applicationId) activity.application_id = data.activity.applicationId;
-                if (data.activity.largeImageKey) activity.assets.large_image = data.activity.largeImageKey;
-                if (data.activity.largeImageText) activity.assets.large_text = data.activity.largeImageText;
-                if (data.activity.smallImageKey) activity.assets.small_image = data.activity.smallImageKey;
-                if (data.activity.smallImageText) activity.assets.small_text = data.activity.smallImageText;
-                if (Object.keys(activity.assets).length === 0) delete activity.assets;
+                if (selectedType === 1 && data.activity.url) {
+                    activity.url = data.activity.url;
+                }
                 presenceData.activities.push(activity);
             }
             await panelClient.user.setPresence(presenceData);
