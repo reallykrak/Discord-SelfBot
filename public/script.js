@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let botInfo = {};
     
-    // TEMPLATE'LERİ ÖNBELLEĞE AL
     const templates = {
         home: document.getElementById('home-template')?.innerHTML,
         bot: document.getElementById('bot-template')?.innerHTML,
@@ -19,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
         messaging: document.getElementById('messaging-template')?.innerHTML,
         tools: document.getElementById('tools-template')?.innerHTML,
         raid: document.getElementById('raid-template')?.innerHTML,
+        "server-copy": document.getElementById('server-copy-template')?.innerHTML,
+        "troll-group": document.getElementById('troll-group-template')?.innerHTML,
         account: document.getElementById('account-template')?.innerHTML,
     };
 
@@ -67,9 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 pane.classList.toggle('active', pane.id === targetTabId);
             });
         });
-    }
+    };
 
-    // SAYFA DEĞİŞTİRME FONKSİYONU
     const switchPage = (hash) => {
         const page = (hash || '#home').substring(1) || 'home';
 
@@ -92,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
-    // HER SAYFA İÇİN ÖZEL EVENT LISTENER'LARI EKLEYEN FONKSİYON
     const addEventListenersForPage = (page) => {
         switch (page) {
             case 'home':
@@ -108,29 +107,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('streamer-bots-container')?.addEventListener('click', handleStreamerButtonClick);
                 break;
             case 'profile':
-                document.getElementById('change-avatar-btn')?.addEventListener('click', handleChangeAvatar);
+                initializeTabs(document.querySelector('#profile .tab-container'));
                 document.getElementById('change-status-btn')?.addEventListener('click', handleChangeStatus);
                 break;
             case 'messaging':
+                initializeTabs(document.querySelector('#messaging .tab-container'));
                 document.getElementById('spam-btn')?.addEventListener('click', handleSpamToggle);
                 document.getElementById('start-dm-clean-btn')?.addEventListener('click', handleDmClean);
                 break;
             case 'tools':
-                const toolsContainer = document.querySelector('#tools, .tab-container');
-                if (toolsContainer) initializeTabs(toolsContainer);
-                
+                initializeTabs(document.querySelector('#tools .tab-container'));
                 document.getElementById('ghost-ping-btn')?.addEventListener('click', handleGhostPing);
-                document.getElementById('start-typing-btn')?.addEventListener('click', handleTyping('start'));
-                document.getElementById('stop-typing-btn')?.addEventListener('click', handleTyping('stop'));
                 document.getElementById('voice-join-btn')?.addEventListener('click', () => handleVoiceControl('join'));
                 document.getElementById('voice-leave-btn')?.addEventListener('click', () => handleVoiceControl('leave'));
                 document.getElementById('voice-play-btn')?.addEventListener('click', () => handleVoiceControl('play'));
                 document.getElementById('voice-stop-btn')?.addEventListener('click', () => handleVoiceControl('stop'));
-                document.getElementById('voice-mute-btn')?.addEventListener('click', () => handleVoiceControl('mute'));
-                document.getElementById('voice-deafen-btn')?.addEventListener('click', () => handleVoiceControl('deafen'));
                 break;
             case 'raid':
                 document.getElementById('start-raid-btn')?.addEventListener('click', handleRaidStart);
+                break;
+            case 'server-copy':
+                document.getElementById('start-copy-btn')?.addEventListener('click', handleServerCopy);
+                break;
+            case 'troll-group':
+                document.getElementById('start-troll-group-btn')?.addEventListener('click', handleStartTrollGroup);
+                document.getElementById('stop-troll-group-btn')?.addEventListener('click', () => socket.emit('stop-troll-group'));
                 break;
             case 'account':
                 document.getElementById('switch-account-btn')?.addEventListener('click', handleSwitchAccount);
@@ -138,7 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // SOCKET.IO EVENTLERİ
     socket.on('connect', () => { if(connectionStatusText) connectionStatusText.textContent = 'Bağlandı'; });
     socket.on('disconnect', () => { if(connectionStatusText) connectionStatusText.textContent = 'Bağlantı Kesildi'; });
     socket.on('bot-info', (data) => { botInfo = data; updateDynamicContent(); });
@@ -146,6 +146,11 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('spam-status-change', (isActive) => updateToggleButton(document.getElementById('spam-btn'), isActive, "Spam'ı Durdur", "Spam'ı Başlat"));
     socket.on('streamer-status-update', renderStreamerBots);
     
+    socket.on('troll-group-status', ({ isActive }) => {
+        document.getElementById('start-troll-group-btn').disabled = isActive;
+        document.getElementById('stop-troll-group-btn').disabled = !isActive;
+    });
+
     socket.on('bot:log', (data) => {
         const consoleOutput = document.getElementById('bot-console-output');
         if (consoleOutput) {
@@ -162,13 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('bot-command-send-btn').disabled = !isRunning;
     });
 
-    // SAYFA YÖNLENDİRME EVENTLERİ
-    window.addEventListener('hashchange', () => switchPage(window.location.hash));
-    
-    // SAYFA İLK YÜKLENDİĞİNDE DOĞRU İÇERİĞİ GÖSTER
-    switchPage(window.location.hash);
-
-    // DİNAMİK İÇERİKLERİ GÜNCELLE (BOT AVATAR, TAG VS.)
     function updateDynamicContent() {
         const userTag = document.getElementById('user-tag');
         const userId = document.getElementById('user-id');
@@ -179,8 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (botInfo.avatar && userAvatar) userAvatar.src = botInfo.avatar;
     };
     
-    // --- EVENT HANDLER FONKSİYONLARI ---
-
     function handleBotCommandSend() {
         const input = document.getElementById('bot-command-input');
         if (input && input.value) {
@@ -220,22 +216,21 @@ document.addEventListener('DOMContentLoaded', () => {
         bots.forEach(bot => {
             const isOnline = bot.status === 'online';
             const statusColor = isOnline ? 'var(--success-color)' : 'var(--text-muted-color)';
-            const botCard = `
-                <div class="card" style="flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
-                    <div style="display: flex; align-items: center; gap: 1rem; min-width: 250px; flex-grow: 1;">
-                        <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 40px; height: 40px; border-radius: 50%;">
-                        <div>
-                            <strong style="white-space: nowrap;">${bot.tag || 'Çevrimdışı'}</strong>
-                            <p style="font-size: 0.8em; color: ${statusColor};">${bot.statusText || 'Durduruldu'}</p>
-                        </div>
+            const botCard = `<div class="card" style="flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">...</div>`; // Kısaltıldı, kod aynı
+            container.innerHTML += botCard.replace('...', `
+                <div style="display: flex; align-items: center; gap: 1rem; min-width: 250px; flex-grow: 1;">
+                    <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div>
+                        <strong style="white-space: nowrap;">${bot.tag || 'Çevrimdışı'}</strong>
+                        <p style="font-size: 0.8em; color: ${statusColor};">${bot.statusText || 'Durduruldu'}</p>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 150px;">
-                        <button style="border-color: var(--success-color);" data-action="start-stream" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Yayın Başlat</button>
-                        <button style="border-color: var(--primary-color);" data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
-                        <button style="border-color: var(--error-color);" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
-                    </div>
-                </div>`;
-            container.innerHTML += botCard;
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 150px;">
+                    <button style="border-color: var(--success-color);" data-action="start-stream" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Yayın Başlat</button>
+                    <button style="border-color: var(--primary-color);" data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
+                    <button style="border-color: var(--error-color);" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
+                </div>
+            `);
         });
     };
 
@@ -253,11 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateToggleButton(button, wantsToEnable);
     };
 
-    function handleChangeAvatar() {
-        const url = document.getElementById('avatar-url').value;
-        if (url) socket.emit('change-avatar', url);
-    };
-
     function handleChangeStatus() {
         const data = {
             status: document.getElementById('status-type').value,
@@ -265,8 +255,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: document.getElementById('activity-text').value,
                 type: document.getElementById('activity-type').value,
                 url: document.getElementById('streaming-url').value,
+                applicationId: document.getElementById('presence-app-id').value,
+                details: document.getElementById('presence-details').value,
+                state: document.getElementById('presence-state').value,
+                largeImageKey: document.getElementById('presence-large-key').value,
+                largeImageText: document.getElementById('presence-large-text').value,
+                smallImageKey: document.getElementById('presence-small-key').value,
+                smallImageText: document.getElementById('presence-small-text').value,
             },
         };
+        if (!data.activity.name && data.activity.details) {
+            data.activity.name = data.activity.details;
+        }
         socket.emit('change-status', data);
     };
 
@@ -274,11 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const channelId = document.getElementById('ghost-ping-channel-id').value;
         const userId = document.getElementById('ghost-ping-user-id').value;
         if (channelId && userId) socket.emit('ghost-ping', { channelId, userId });
-    };
-
-    const handleTyping = (action) => () => {
-        const channelId = document.getElementById('typing-channel-id').value;
-        if (channelId) socket.emit(`${action}-typing`, channelId);
     };
 
     function handleSwitchAccount() {
@@ -307,5 +302,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         socket.emit('toggle-spam', data);
     };
+    
+    function handleServerCopy() {
+        const sourceGuildId = document.getElementById('source-guild-id').value;
+        const newServerName = document.getElementById('new-guild-name').value;
+        if (!sourceGuildId || !newServerName) {
+            return showToast('Lütfen tüm alanları doldurun.', 'error');
+        }
+        socket.emit('server-copy', { sourceGuildId, newServerName });
+    }
+
+    function handleStartTrollGroup() {
+        const userIds = [
+            document.getElementById('troll-user-1').value,
+            document.getElementById('troll-user-2').value,
+            document.getElementById('troll-user-3').value,
+        ];
+        if (!userIds[0] || !userIds[1]) {
+            return showToast('Lütfen en az ilk 2 kişi ID\'sini girin.', 'error');
+        }
+        socket.emit('start-troll-group', { userIds });
+    }
+
+    switchPage(window.location.hash);
+    window.addEventListener('hashchange', () => switchPage(window.location.hash));
 });
-        
+            
