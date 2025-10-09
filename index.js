@@ -308,7 +308,12 @@ function loginPanelClient(token) {
                         { name: '⚙️ Hesap Yönetimi', value: '`.oynuyor [oyun]`, `.izliyor [film]`, `.dinliyor [şarkı]`, `.yayın [yayın adı]`, `.durum [online/idle/dnd/invisible]`, `.temizle [sayı]`', inline: false },
                         { name: '💥 Raid & Yönetim Komutları', value: '`.dmall [mesaj]`, `.rol-oluştur [isim] [sayı]`, `.kanal-oluştur [isim] [sayı]`, `.herkesi-banla [sebep]`, `.kanalları-sil`, `.rolleri-sil`', inline: false }
                     );
-                await msg.edit({ content: ' ', embeds: [helpEmbed] });
+                // HATA DÜZELTMESİ: Boş mesaj hatasını önlemek için içeriği boşluk yerine görünmez bir karakterle doldurun.
+                await msg.edit({ content: '\u200B', embeds: [helpEmbed] }).catch(async (e) => {
+                     console.error("Help komutu düzenlenemedi, silinip yeniden gönderiliyor:", e);
+                     await msg.delete();
+                     await msg.channel.send({ embeds: [helpEmbed] });
+                });
             } catch (e) {
                 console.error("Help komutu başarısız:", e);
                 await msg.edit("Komutlar yüklenemedi. Lütfen tekrar deneyin.").catch(console.error);
@@ -442,6 +447,16 @@ io.on('connection', (socket) => {
     
     socket.on('change-status', async (data) => {
         try {
+            // HATA DÜZELTMESİ: RPC'nin çalışması için ActivityType enum'larını kullanın
+            const activityTypeMap = {
+                PLAYING: ActivityType.Playing,
+                STREAMING: ActivityType.Streaming,
+                LISTENING: ActivityType.Listening,
+                WATCHING: ActivityType.Watching,
+                COMPETING: ActivityType.Competing,
+            };
+            const selectedType = activityTypeMap[data.activity.type] ?? ActivityType.Playing;
+
             const presenceData = {
                 status: data.status,
                 activities: [],
@@ -450,13 +465,13 @@ io.on('connection', (socket) => {
             if (data.activity.name) {
                 const activity = {
                     name: data.activity.name,
-                    type: data.activity.type,
-                    assets: {},
+                    type: selectedType,
                     details: data.activity.details,
-                    state: data.activity.state
+                    state: data.activity.state,
+                    assets: {}
                 };
 
-                if (data.activity.type === 'STREAMING' && data.activity.url) {
+                if (selectedType === ActivityType.Streaming && data.activity.url) {
                     activity.url = data.activity.url;
                 }
 
@@ -475,6 +490,11 @@ io.on('connection', (socket) => {
                     if (data.activity.smallImageText) {
                         activity.assets.small_text = data.activity.smallImageText;
                     }
+                }
+
+                // Eğer assets nesnesi boşsa, onu aktiviteden kaldırın
+                if (Object.keys(activity.assets).length === 0) {
+                    delete activity.assets;
                 }
                 
                 presenceData.activities.push(activity);
@@ -503,25 +523,38 @@ io.on('connection', (socket) => {
         }
         try {
             const { userIds } = data;
-            const validUserIds = userIds.filter(id => id.trim() !== '');
+            // HATA DÜZELTMESİ: Geçersiz ID'leri ve boşlukları filtreleyin
+            const validUserIds = userIds.filter(id => id && /^\d{17,19}$/.test(id.trim()));
             if (validUserIds.length < 2) {
                 return socket.emit('status-update', { message: 'En az 2 geçerli kullanıcı IDsi girmelisiniz.', type: 'error' });
             }
 
             socket.emit('status-update', { message: 'Grup oluşturuluyor...', type: 'info' });
 
-            const firstUser = await panelClient.users.fetch(validUserIds[0]);
+            // HATA DÜZELTMESİ: Kullanıcı bulunamazsa veya erişilemezse hatayı yakala
+            let firstUser;
+            try {
+                firstUser = await panelClient.users.fetch(validUserIds[0]);
+            } catch (e) {
+                return socket.emit('status-update', { message: `Grup oluşturulamadı: ${validUserIds[0]} ID'li kullanıcı bulunamadı veya erişilemiyor.`, type: 'error' });
+            }
+            
             const dmChannel = await firstUser.createDM();
             
             for (let i = 1; i < validUserIds.length; i++) {
-                await dmChannel.addMember(validUserIds[i]).catch(e => { throw new Error(`${validUserIds[i]} ID'li kullanıcı eklenemedi: ${e.message}`) });
+                try {
+                    await dmChannel.addMember(validUserIds[i]);
+                     socket.emit('status-update', { message: `${validUserIds[i]} ID'li kullanıcı gruba eklendi.`, type: 'info' });
+                } catch(e) {
+                     socket.emit('status-update', { message: `${validUserIds[i]} ID'li kullanıcı eklenemedi: ${e.message}`, type: 'warning' });
+                }
                 await new Promise(res => setTimeout(res, 500));
             }
 
             trollGroupChannel = dmChannel;
             
             trollGroupListener = (channel, recipient) => {
-                if (channel.id === trollGroupChannel.id) {
+                if (trollGroupChannel && channel.id === trollGroupChannel.id) {
                     console.log(`[Troll Group] ${recipient.user.tag} gruptan ayrıldı. Geri ekleniyor...`);
                     socket.emit('status-update', { message: `${recipient.user.tag} gruptan ayrıldı, geri ekleniyor!`, type: 'warning' });
                     setTimeout(() => channel.addMember(recipient.user.id).catch(console.error), 1000);
