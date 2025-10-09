@@ -95,7 +95,6 @@
                  <div class="tab-container">
                    <div class="tab-nav">
                        <button class="tab-btn active" data-tab="status"><i class="fa-solid fa-rss"></i> Durum Değiştir</button>
-                       <button class="tab-btn" data-tab="presence"><i class="fa-solid fa-star"></i> Gelişmiş Durum (Resimli)</button>
                        <button class="tab-btn" data-tab="avatar"><i class="fa-solid fa-image-portrait"></i> Avatar Değiştir</button>
                    </div>
                    <div class="tab-content">
@@ -116,20 +115,6 @@
                            </select>
                            <input type="text" id="activity-text" placeholder="Aktivite Metni (örn: Visual Studio Code)">
                            <input type="text" id="streaming-url" placeholder="Yayın URL'si (Sadece Yayınlıyor için)">
-                       </div>
-                       <div class="tab-pane" id="tab-presence">
-                            <h3>Gelişmiş Durum (Rich Presence)</h3>
-                            <p style="font-size: 0.9em; color: var(--text-muted-color);">
-                                Bu özelliği kullanmak için Discord Developer Portal'da bir uygulama oluşturmalı ve resimleri oraya yüklemelisiniz.
-                                <strong style="display: block; margin-top: 5px;">Not: "Temel Durum" sekmesindeki "Aktivite Metni" alanı, Rich Presence'ın ana adı (örn: oyun adı) olarak kullanılır ve doldurulmalıdır.</strong>
-                            </p>
-                            <input type="text" id="presence-app-id" placeholder="Application ID">
-                            <input type="text" id="presence-details" placeholder="Detaylar (Üst Satır)">
-                            <input type="text" id="presence-state" placeholder="Durum (Alt Satır)">
-                            <input type="text" id="presence-large-key" placeholder="Büyük Resim Anahtarı (örn: main_icon)">
-                            <input type="text" id="presence-large-text" placeholder="Büyük Resim Metni">
-                            <input type="text" id="presence-small-key" placeholder="Küçük Resim Anahtarı (örn: status_icon)">
-                            <input type="text" id="presence-small-text" placeholder="Küçük Resim Metni">
                        </div>
                        <div class="tab-pane" id="tab-avatar">
                             <h3>Avatar Değiştir</h3>
@@ -259,5 +244,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-                                         </html>
-        
+    </html>
+    
