@@ -12,9 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // TEMPLATE'LERİ ÖNBELLEĞE AL
     const templates = {
-        home: document.getElementById('home-template').innerHTML,
+        home: document.getElementById('home-template')?.innerHTML,
         bot: document.getElementById('bot-template')?.innerHTML,
-        streamer: document.getElementById('streamer-template').innerHTML,
+        streamer: document.getElementById('streamer-template')?.innerHTML,
         profile: document.getElementById('profile-template')?.innerHTML,
         messaging: document.getElementById('messaging-template')?.innerHTML,
         tools: document.getElementById('tools-template')?.innerHTML,
@@ -71,24 +71,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // SAYFA DEĞİŞTİRME FONKSİYONU
     const switchPage = (hash) => {
-        // Hash boşsa veya sadece '#' ise 'home' sayfasına yönlendir.
         const page = (hash || '#home').substring(1) || 'home';
 
         if (!templates[page] || !mainContent) {
-            console.error(`Template veya main content bulunamadı: ${page}`);
+            console.error(`'${page}' için template veya ana içerik alanı bulunamadı.`);
+            mainContent.innerHTML = `<div class="card"><h3 style="color: var(--error-color);">Sayfa Yüklenemedi</h3><p>'${page}' adlı sayfanın içeriği bulunamadı. Lütfen script.js dosyasını kontrol edin.</p></div>`;
             return;
         }
         
         mainContent.innerHTML = templates[page];
-        updateDynamicContent(); // Bot bilgilerini güncelle
-        addEventListenersForPage(page); // Yeni sayfanın butonları için event listener ekle
+        updateDynamicContent(); 
+        addEventListenersForPage(page);
 
-        // Eğer streamer sayfasına geçildiyse bot listesini sunucudan iste
         if (page === 'streamer') {
             socket.emit('get-streamer-bots');
         }
         
-        // Menüdeki aktif linki güncelle
         navLinks.forEach(link => {
             link.classList.toggle('active', link.getAttribute('href') === `#${page}`);
         });
@@ -118,8 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('start-dm-clean-btn')?.addEventListener('click', handleDmClean);
                 break;
             case 'tools':
-                // Araçlar sayfasındaki tabları başlat
-                const toolsContainer = document.getElementById('tools');
+                const toolsContainer = document.querySelector('#tools, .tab-container');
                 if (toolsContainer) initializeTabs(toolsContainer);
                 
                 document.getElementById('ghost-ping-btn')?.addEventListener('click', handleGhostPing);
@@ -149,43 +146,30 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('spam-status-change', (isActive) => updateToggleButton(document.getElementById('spam-btn'), isActive, "Spam'ı Durdur", "Spam'ı Başlat"));
     socket.on('streamer-status-update', renderStreamerBots);
     
-    // KONSOL LOGLARI VE DURUM GÜNCELLEMELERİ İÇİN GENEL FONKSİYON
-    const setupConsole = (logEvent, statusEvent, elements) => {
-        socket.on(logEvent, (data) => {
-            const consoleOutput = document.getElementById(elements.console);
-            if (consoleOutput) {
-                consoleOutput.textContent += data;
-                consoleOutput.scrollTop = consoleOutput.scrollHeight;
-            }
-        });
+    socket.on('bot:log', (data) => {
+        const consoleOutput = document.getElementById('bot-console-output');
+        if (consoleOutput) {
+            consoleOutput.textContent += data;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+    });
 
-        socket.on(statusEvent, ({ isRunning }) => {
-            const startBtn = document.getElementById(elements.start);
-            const stopBtn = document.getElementById(elements.stop);
-            const installBtn = document.getElementById(elements.install);
-            const commandInput = document.getElementById(elements.commandInput);
-            const commandBtn = document.getElementById(elements.commandBtn);
-            
-            if (startBtn) startBtn.disabled = isRunning;
-            if (stopBtn) stopBtn.disabled = !isRunning;
-            if (installBtn) installBtn.disabled = isRunning;
-            if (commandInput) commandInput.disabled = !isRunning;
-            if (commandBtn) commandBtn.disabled = !isRunning;
-        });
-    };
+    socket.on('bot:status', ({ isRunning }) => {
+        document.getElementById('bot-start-btn').disabled = isRunning;
+        document.getElementById('bot-stop-btn').disabled = !isRunning;
+        document.getElementById('bot-install-btn').disabled = isRunning;
+        document.getElementById('bot-command-input').disabled = !isRunning;
+        document.getElementById('bot-command-send-btn').disabled = !isRunning;
+    });
 
-    // Bot için konsolu ayarla
-    setupConsole('bot:log', 'bot:status', { console: 'bot-console-output', start: 'bot-start-btn', stop: 'bot-stop-btn', install: 'bot-install-btn', commandInput: 'bot-command-input', commandBtn: 'bot-command-send-btn' });
-    
     // SAYFA YÖNLENDİRME EVENTLERİ
-    navLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = link.hash; }));
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
     
     // SAYFA İLK YÜKLENDİĞİNDE DOĞRU İÇERİĞİ GÖSTER
     switchPage(window.location.hash);
 
     // DİNAMİK İÇERİKLERİ GÜNCELLE (BOT AVATAR, TAG VS.)
-    const updateDynamicContent = () => {
+    function updateDynamicContent() {
         const userTag = document.getElementById('user-tag');
         const userId = document.getElementById('user-id');
         const userAvatar = document.getElementById('user-avatar');
@@ -197,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- EVENT HANDLER FONKSİYONLARI ---
 
-    const handleBotCommandSend = () => {
+    function handleBotCommandSend() {
         const input = document.getElementById('bot-command-input');
         if (input && input.value) {
             socket.emit('bot:command', input.value);
@@ -205,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    const handleRaidStart = () => {
+    function handleRaidStart() {
         const serverId = document.getElementById('raid-server-id').value;
         const raidName = document.getElementById('raid-name').value;
         const amount = document.getElementById('raid-amount').value;
@@ -217,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const handleStreamerButtonClick = (e) => {
+    function handleStreamerButtonClick(e) {
         const button = e.target.closest('button');
         if (!button) return;
         const action = button.dataset.action;
@@ -229,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const renderStreamerBots = (bots) => {
+    function renderStreamerBots(bots) {
         const container = document.getElementById('streamer-bots-container');
         if (!container) return;
         container.innerHTML = bots.length > 0 ? '' : '<p>Config dosyasında yönetilecek bot bulunamadı.</p>';
@@ -255,13 +239,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const handleVoiceControl = (action) => {
+    function handleVoiceControl(action) {
         const channelIdInput = document.getElementById('voice-channel-id');
         const channelId = channelIdInput ? channelIdInput.value : null;
         socket.emit('voice-control', { action, channelId });
     };
 
-    const handleAfkToggle = (e) => {
+    function handleAfkToggle(e) {
         const button = e.target.closest('.toggle-switch');
         if (!button) return;
         const wantsToEnable = button.dataset.status !== 'true';
@@ -269,12 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateToggleButton(button, wantsToEnable);
     };
 
-    const handleChangeAvatar = () => {
+    function handleChangeAvatar() {
         const url = document.getElementById('avatar-url').value;
         if (url) socket.emit('change-avatar', url);
     };
 
-    const handleChangeStatus = () => {
+    function handleChangeStatus() {
         const data = {
             status: document.getElementById('status-type').value,
             activity: {
@@ -286,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('change-status', data);
     };
 
-    const handleGhostPing = () => {
+    function handleGhostPing() {
         const channelId = document.getElementById('ghost-ping-channel-id').value;
         const userId = document.getElementById('ghost-ping-user-id').value;
         if (channelId && userId) socket.emit('ghost-ping', { channelId, userId });
@@ -297,17 +281,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (channelId) socket.emit(`${action}-typing`, channelId);
     };
 
-    const handleSwitchAccount = () => {
+    function handleSwitchAccount() {
         const token = document.getElementById('new-token').value;
         if (token) socket.emit('switch-account', token);
     };
 
-    const handleDmClean = () => {
+    function handleDmClean() {
         const userId = document.getElementById('clean-dm-user-id').value;
         if (userId) socket.emit('clean-dm', { userId });
     };
 
-    const handleSpamToggle = (e) => {
+    function handleSpamToggle(e) {
         const button = e.target.closest('button');
         if (!button) return;
         const isSpamming = button.dataset.status === 'true';
@@ -324,4 +308,4 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('toggle-spam', data);
     };
 });
-            
+        
