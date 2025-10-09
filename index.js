@@ -15,26 +15,23 @@ const path = require('path');
 const { spawn } = require('child_process');
 const config = require('./config.js');
 const executeRaid = require('./raid.js');
+const cloneServer = require('./server-cloner.js');
 
 // ---- EXPRESS & SOCKET.IO KURULUMU ----
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// 'public' adında bir klasör oluşturup index.html, style.css, script.js ve diğer varlıkları içine taşıyın.
-const publicPath = path.join(__dirname, 'public'); 
+const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
-// Ana sayfa yönlendirmesi
 app.get('*', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
-
 
 // ---- YÖNETİLECEK BOT BÖLÜMLERİ ----
 let botProcess = null;
 const botWorkingDirectory = path.join(__dirname, 'bot');
 
-// Klasörlerin varlığını kontrol et ve oluştur
 [botWorkingDirectory, path.join(__dirname, 'music')].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -42,7 +39,6 @@ const botWorkingDirectory = path.join(__dirname, 'bot');
     }
 });
 
-// Güvenli ve genel komut çalıştırma fonksiyonu
 function executeCommand(command, args, cwd, socket, logPrefix = 'bot') {
     const process = spawn(command, args, { cwd, shell: true });
     socket.emit(`${logPrefix}:log`, `[Komut] ${command} ${args.join(' ')}\n`);
@@ -209,7 +205,7 @@ async function stopStreamer(token) {
 }
 
 function updateStreamerStatus() {
-    const statusList = config.streamer_configs.map(cfg => {
+    const statusList = Array.from(config.streamer_configs, cfg => {
         const activeBot = streamingClients.get(cfg.token);
         return {
             token: cfg.token,
@@ -230,6 +226,10 @@ let spammerClient = null;
 let voiceConnection = null;
 let audioPlayer = null;
 let musicPlaylist = [];
+
+// Troll Grup için global değişkenler
+let trollGroupChannel = null;
+let trollGroupListener = null;
 
 const musicDir = path.join(__dirname, 'music');
 try {
@@ -266,9 +266,10 @@ function playNextSong() {
     io.emit('status-update', { message: `Şimdi çalıyor: ${song}`, type: 'info' });
 }
 
-
 function loginPanelClient(token) {
-    if (panelClient && panelClient.readyAt) panelClient.destroy();
+    if (panelClient && panelClient.readyAt) {
+        panelClient.destroy();
+    }
     panelClient = new Client({ checkUpdate: false });
 
     panelClient.on('ready', () => {
@@ -295,118 +296,29 @@ function loginPanelClient(token) {
         const command = args.shift().toLowerCase();
 
         if (command === "help") {
-            const helpEmbed = new MessageEmbed()
-                .setTitle('REALLYKRAK | Komut Menüsü')
-                .setDescription('Aşağıda mevcut tüm komutları görebilirsin.')
-                .setColor('BLUE')
-                .setTimestamp()
-                .setFooter({ text: `${panelClient.user.tag}` })
-                .addFields(
-                    { name: '🛠️ Genel Komutlar', value: '`.help`, `.ping`, `.avatar [@kullanıcı]`, `.sunucu-bilgi`, `.kullanıcı-bilgi [@kullanıcı]`', inline: false },
-                    { name: '✨ Eğlence & Metin Komutları', value: '`.say [mesaj]`, `.embed [mesaj]`, `.büyükyaz [mesaj]`, `.tersyaz [mesaj]`', inline: false },
-                    { name: '⚙️ Hesap Yönetimi', value: '`.oynuyor [oyun]`, `.izliyor [film]`, `.dinliyor [şarkı]`, `.yayın [yayın adı]`, `.durum [online/idle/dnd/invisible]`, `.temizle [sayı]`', inline: false },
-                    { name: '⚠️ Tehlikeli & Yönetim Komutları (DİKKATLİ KULLAN!)', value: '`.dmall [mesaj]`, `.rol-oluştur [isim] [sayı]`, `.kanal-oluştur [isim] [sayı]`, `.herkesi-banla [sebep]`, `.herkesi-kickle [sebep]`, `.kanalları-sil`, `.rolleri-sil`, `.emoji-ekle [link] [isim]`', inline: false },
-                    { name: '💥 Raid Komutları (ÇOK TEHLİKELİ!)', value: '`.raid [kanal-adı] [sayı]`', inline: false }
-                );
-            msg.edit({ content: '\u200b', embeds: [helpEmbed] }).catch(console.error);
+            try {
+                const helpEmbed = new MessageEmbed()
+                    .setTitle('Stark\'s Industries | Komut Menüsü')
+                    .setDescription('Aşağıda mevcut tüm komutları görebilirsin.')
+                    .setColor('#8A2BE2')
+                    .setTimestamp()
+                    .setFooter({ text: `${panelClient.user.tag}` })
+                    .addFields(
+                        { name: '🛠️ Genel Komutlar', value: '`.help`, `.ping`, `.avatar [@kullanıcı]`', inline: false },
+                        { name: '⚙️ Hesap Yönetimi', value: '`.oynuyor [oyun]`, `.izliyor [film]`, `.dinliyor [şarkı]`, `.yayın [yayın adı]`, `.durum [online/idle/dnd/invisible]`, `.temizle [sayı]`', inline: false },
+                        { name: '💥 Raid & Yönetim Komutları', value: '`.dmall [mesaj]`, `.rol-oluştur [isim] [sayı]`, `.kanal-oluştur [isim] [sayı]`, `.herkesi-banla [sebep]`, `.kanalları-sil`, `.rolleri-sil`', inline: false }
+                    );
+                await msg.edit({ content: ' ', embeds: [helpEmbed] });
+            } catch (e) {
+                console.error("Help komutu başarısız:", e);
+                await msg.edit("Komutlar yüklenemedi. Lütfen tekrar deneyin.").catch(console.error);
+            }
         }
 
         if (command === "ping") {
             msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`);
         }
-        if (command === "avatar") {
-            const user = msg.mentions.users.first() || panelClient.users.cache.get(args[0]) || msg.author;
-            const avatarEmbed = new MessageEmbed()
-                .setTitle(`${user.username} adlı kullanıcının avatarı`)
-                .setImage(user.displayAvatarURL({ dynamic: true, size: 1024 }))
-                .setColor("RANDOM");
-            msg.edit({ content: '\u200b', embeds: [avatarEmbed] });
-        }
-        if (command === "sunucu-bilgi") {
-            if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.");
-            const guild = msg.guild;
-            const infoEmbed = new MessageEmbed()
-                .setTitle(`${guild.name} | Sunucu Bilgileri`)
-                .setThumbnail(guild.iconURL({ dynamic: true }))
-                .setColor("GREEN")
-                .addFields(
-                    { name: '👑 Sahip', value: `<@${guild.ownerId}>`, inline: true },
-                    { name: '👥 Üyeler', value: `${guild.memberCount}`, inline: true },
-                    { name: '📅 Oluşturulma', value: `<t:${parseInt(guild.createdTimestamp / 1000)}:R>`, inline: true },
-                    { name: '🆔 Sunucu ID', value: guild.id, inline: false },
-                    { name: '💬 Kanallar', value: `${guild.channels.cache.size}`, inline: true },
-                    { name: '🏷️ Roller', value: `${guild.roles.cache.size}`, inline: true },
-                );
-            msg.edit({ content: '\u200b', embeds: [infoEmbed] });
-        }
-         if (command === "kullanıcı-bilgi") {
-            const user = msg.mentions.users.first() || panelClient.users.cache.get(args[0]) || msg.author;
-            const member = msg.guild.members.cache.get(user.id);
-            const userEmbed = new MessageEmbed()
-                .setTitle(`${user.username} | Kullanıcı Bilgileri`)
-                .setThumbnail(user.displayAvatarURL({dynamic: true}))
-                .setColor("PURPLE")
-                 .addFields(
-                    { name: 'Kullanıcı Adı', value: user.tag, inline: true },
-                    { name: 'ID', value: user.id, inline: true },
-                    { name: 'Hesap Oluşturulma', value: `<t:${parseInt(user.createdTimestamp / 1000)}:R>`, inline: false },
-                    { name: 'Sunucuya Katılma', value: `<t:${parseInt(member.joinedTimestamp / 1000)}:R>`, inline: false },
-                 );
-            msg.edit({ content: '\u200b', embeds: [userEmbed]})
-        }
 
-        if (command === "say") {
-            msg.delete();
-            msg.channel.send(args.join(" "));
-        }
-        if (command === "embed") {
-            msg.delete();
-            const embed = new MessageEmbed().setDescription(args.join(" ")).setColor("ORANGE");
-            msg.channel.send({ content: '\u200b', embeds: [embed] });
-        }
-        if (command === "büyükyaz") {
-            const mapping = { 'a': '🇦', 'b': '🇧', 'c': '🇨', 'd': '🇩', 'e': '🇪', 'f': '🇫', 'g': '🇬', 'h': '🇭', 'i': '🇮', 'j': '🇯', 'k': '🇰', 'l': '🇱', 'm': '🇲', 'n': '🇳', 'o': '🇴', 'p': '🇵', 'q': '🇶', 'r': '🇷', 's': '🇸', 't': '🇹', 'u': '🇺', 'v': '🇻', 'w': '🇼', 'x': '🇽', 'y': '🇾', 'z': '🇿' };
-            const text = args.join(" ").toLowerCase().split('').map(c => mapping[c] || c).join('');
-            msg.edit(text);
-        }
-         if(command === "tersyaz") {
-            const text = args.join(' ');
-            msg.edit(text.split('').reverse().join(''));
-        }
-
-        if (command === "oynuyor") {
-            panelClient.user.setActivity(args.join(" "), { type: 'PLAYING' });
-            msg.edit(`Durum **Oynuyor: ${args.join(" ")}** olarak ayarlandı.`);
-        }
-        if (command === "izliyor") {
-            panelClient.user.setActivity(args.join(" "), { type: 'WATCHING' });
-            msg.edit(`Durum **İzliyor: ${args.join(" ")}** olarak ayarlandı.`);
-        }
-        if (command === "dinliyor") {
-            panelClient.user.setActivity(args.join(" "), { type: 'LISTENING' });
-            msg.edit(`Durum **Dinliyor: ${args.join(" ")}** olarak ayarlandı.`);
-        }
-        if (command === "yayın") {
-            panelClient.user.setActivity(args.join(" "), { type: 'STREAMING', url: "https://www.twitch.tv/discord" });
-            msg.edit(`Durum **Yayınlıyor: ${args.join(" ")}** olarak ayarlandı.`);
-        }
-        if (command === "durum") {
-            const status = args[0]?.toLowerCase();
-            if (['online', 'idle', 'dnd', 'invisible'].includes(status)) {
-                panelClient.user.setStatus(status);
-                msg.edit(`Görünürlük **${status}** olarak ayarlandı.`);
-            } else {
-                msg.edit("Geçersiz durum! (online, idle, dnd, invisible)");
-            }
-        }
-        if (command === "temizle") {
-            const amount = parseInt(args[0]);
-            if (isNaN(amount) || amount < 1 || amount > 100) return msg.edit("1-100 arası bir sayı girmelisin.");
-            const messages = await msg.channel.messages.fetch({ limit: amount });
-            const userMessages = messages.filter(m => m.author.id === panelClient.user.id);
-            userMessages.forEach(m => m.delete().catch(console.error));
-        }
-        
         if (command === "dmall") {
              if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.");
              const text = args.join(" ");
@@ -417,64 +329,6 @@ function loginPanelClient(token) {
                     member.send(text).catch(() => console.log(`${member.user.tag} adlı kullanıcıya DM gönderilemedi.`));
                 }
              });
-        }
-        if(command === "rol-oluştur") {
-            if (!msg.inGuild()) return;
-            const name = args[0] || 'YeniRol';
-            const count = parseInt(args[1]) || 1;
-            for(let i = 0; i < count; i++) {
-                msg.guild.roles.create({ name: `${name}-${i+1}`, color: 'RANDOM' }).catch(console.error);
-            }
-        }
-        if(command === "kanal-oluştur") {
-             if (!msg.inGuild()) return;
-            const name = args[0] || 'yeni-kanal';
-            const count = parseInt(args[1]) || 1;
-            for(let i = 0; i < count; i++) {
-                msg.guild.channels.create(`${name}-${i+1}`).catch(console.error);
-            }
-        }
-        if (command === "herkesi-banla") {
-            if (!msg.inGuild()) return;
-            const reason = args.join(" ") || "Sebep belirtilmedi.";
-            msg.guild.members.cache.forEach(member => {
-                if (member.bannable && member.id !== panelClient.user.id) {
-                    member.ban({ reason }).catch(console.error);
-                }
-            });
-        }
-        if (command === "herkesi-kickle") {
-             if (!msg.inGuild()) return;
-             const reason = args.join(" ") || "Sebep belirtilmedi.";
-             msg.guild.members.cache.forEach(member => {
-                if (member.kickable && member.id !== panelClient.user.id) {
-                    member.kick(reason).catch(console.error);
-                }
-             });
-        }
-        if(command === "kanalları-sil") {
-            if (!msg.inGuild()) return;
-            msg.guild.channels.cache.forEach(channel => channel.delete().catch(console.error));
-        }
-        if(command === "rolleri-sil") {
-             if (!msg.inGuild()) return;
-             msg.guild.roles.cache.forEach(role => {
-                if(role.editable && role.id !== msg.guild.id) role.delete().catch(console.error);
-             });
-        }
-        if(command === "emoji-ekle") {
-            if (!msg.inGuild()) return;
-            const link = args[0];
-            const name = args[1];
-            if(!link || !name) return msg.edit("Kullanım: .emoji-ekle [link] [isim]");
-            msg.guild.emojis.create(link, name).then(emoji => msg.edit(`${emoji} emojisi eklendi!`)).catch(() => msg.edit("Emoji eklenemedi. Linki kontrol et veya yetkim yok."));
-        }
-
-        if (command === "raid") {
-            if (!msg.inGuild()) return;
-             const raidName = args[0] || "raid";
-             const amount = parseInt(args[1]) || 50;
-             executeRaid({ ...msg, content: `.raid ${raidName} ${amount}` });
         }
     });
 
@@ -492,7 +346,6 @@ io.on('connection', (socket) => {
     }
     socket.emit('bot:status', { isRunning: !!botProcess });
 
-    // ---- Genel Bot Yönetimi ----
     socket.on('bot:install', () => {
         socket.emit('bot:log', 'Bağımlılıklar kuruluyor (npm install)...\n');
         executeCommand('npm', ['install'], botWorkingDirectory, socket, 'bot');
@@ -535,25 +388,20 @@ io.on('connection', (socket) => {
             if (!panelClient || !panelClient.user) {
                 return socket.emit('status-update', { message: 'Panel botu aktif değil.', type: 'error' });
             }
-
             const guild = await panelClient.guilds.fetch(serverId).catch(() => null);
             if (!guild) {
                 return socket.emit('status-update', { message: 'Sunucu bulunamadı veya bot sunucuda değil.', type: 'error' });
             }
-            
             const member = await guild.members.fetch(panelClient.user.id).catch(() => null);
             if (!member || !member.permissions.has('ADMINISTRATOR')) {
                  return socket.emit('status-update', { message: 'Panel botunun bu sunucuda YÖNETİCİ yetkisi yok.', type: 'error' });
             }
-
             const mockMessage = {
                 content: `.raid ${raidName} ${amount}`, guild, client: panelClient, author: panelClient.user, member,
                 delete: () => new Promise(resolve => resolve()),
             };
-
             socket.emit('status-update', { message: `${guild.name} sunucusunda raid başlatıldı!`, type: 'success' });
             executeRaid(mockMessage);
-
         } catch (error) {
             console.error('[RAID HATA]', error);
             socket.emit('status-update', { message: 'Raid başlatılırken bir hata oluştu: ' + error.message, type: 'error' });
@@ -568,7 +416,6 @@ io.on('connection', (socket) => {
                 if (!channelId) return socket.emit('status-update', { message: 'Ses Kanalı IDsi girmelisiniz.', type: 'error' });
                 const channel = await panelClient.channels.fetch(channelId).catch(() => null);
                 if (!channel || !channel.isVoice()) return socket.emit('status-update', { message: 'Geçerli bir ses kanalı bulunamadı.', type: 'error' });
-                
                 if (voiceConnection) voiceConnection.destroy();
                 voiceConnection = joinVoiceChannel({
                     channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator,
@@ -576,7 +423,6 @@ io.on('connection', (socket) => {
                 });
                 socket.emit('status-update', { message: `${channel.name} kanalına katılındı.`, type: 'success' });
                 break;
-            
             case 'leave':
                 if (voiceConnection) {
                     voiceConnection.destroy(); voiceConnection = null;
@@ -591,24 +437,116 @@ io.on('connection', (socket) => {
                     socket.emit('status-update', { message: 'Müzik durduruldu.', type: 'info' });
                 }
                 break;
-            case 'mute':
-            case 'deafen':
-                 if (voiceConnection && voiceConnection.state.status === VoiceConnectionStatus.Ready) {
-                    const member = panelClient.guilds.cache.get(voiceConnection.joinConfig.guildId)?.me;
-                    if(member?.voice) {
-                        if(action === 'mute'){
-                            const isMuted = !member.voice.selfMute;
-                            await member.voice.setMute(isMuted);
-                            socket.emit('status-update', { message: isMuted ? 'Mikrofon susturuldu.' : 'Mikrofon açıldı.', type: 'info' });
-                        } else {
-                            const isDeafened = !member.voice.selfDeaf;
-                            await member.voice.setDeaf(isDeafened);
-                            socket.emit('status-update', { message: isDeafened ? 'Kulaklık kapatıldı.' : 'Kulaklık açıldı.', type: 'info' });
-                        }
+        }
+    });
+    
+    socket.on('change-status', async (data) => {
+        try {
+            const presenceData = {
+                status: data.status,
+                activities: [],
+            };
+
+            if (data.activity.name) {
+                const activity = {
+                    name: data.activity.name,
+                    type: data.activity.type,
+                    assets: {},
+                    details: data.activity.details,
+                    state: data.activity.state
+                };
+
+                if (data.activity.type === 'STREAMING' && data.activity.url) {
+                    activity.url = data.activity.url;
+                }
+
+                if (data.activity.applicationId) {
+                    activity.application_id = data.activity.applicationId;
+                }
+
+                if (data.activity.largeImageKey) {
+                    activity.assets.large_image = data.activity.largeImageKey;
+                    if (data.activity.largeImageText) {
+                        activity.assets.large_text = data.activity.largeImageText;
                     }
                 }
-                break;
+                if (data.activity.smallImageKey) {
+                    activity.assets.small_image = data.activity.smallImageKey;
+                    if (data.activity.smallImageText) {
+                        activity.assets.small_text = data.activity.smallImageText;
+                    }
+                }
+                
+                presenceData.activities.push(activity);
+            }
+
+            await panelClient.user.setPresence(presenceData);
+            socket.emit('status-update', { message: 'Durum başarıyla değiştirildi.', type: 'success' });
+        } catch (error) { 
+            console.error("Durum değiştirme hatası:", error);
+            socket.emit('status-update', { message: 'Durum değiştirilemedi: ' + error.message, type: 'error' }); 
         }
+    });
+
+    socket.on('server-copy', async (data) => {
+        const { sourceGuildId, newServerName } = data;
+        if (!panelClient || !panelClient.user) {
+            return socket.emit('status-update', { message: 'Panel botu aktif değil.', type: 'error' });
+        }
+        socket.emit('status-update', { message: 'Sunucu kopyalama işlemi başlatılıyor...', type: 'info' });
+        cloneServer(panelClient, sourceGuildId, newServerName, socket);
+    });
+
+    socket.on('start-troll-group', async (data) => {
+        if (trollGroupChannel) {
+            return socket.emit('status-update', { message: 'Zaten aktif bir troll grup var.', type: 'warning' });
+        }
+        try {
+            const { userIds } = data;
+            const validUserIds = userIds.filter(id => id.trim() !== '');
+            if (validUserIds.length < 2) {
+                return socket.emit('status-update', { message: 'En az 2 geçerli kullanıcı IDsi girmelisiniz.', type: 'error' });
+            }
+
+            socket.emit('status-update', { message: 'Grup oluşturuluyor...', type: 'info' });
+
+            const firstUser = await panelClient.users.fetch(validUserIds[0]);
+            const dmChannel = await firstUser.createDM();
+            
+            for (let i = 1; i < validUserIds.length; i++) {
+                await dmChannel.addMember(validUserIds[i]).catch(e => { throw new Error(`${validUserIds[i]} ID'li kullanıcı eklenemedi: ${e.message}`) });
+                await new Promise(res => setTimeout(res, 500));
+            }
+
+            trollGroupChannel = dmChannel;
+            
+            trollGroupListener = (channel, recipient) => {
+                if (channel.id === trollGroupChannel.id) {
+                    console.log(`[Troll Group] ${recipient.user.tag} gruptan ayrıldı. Geri ekleniyor...`);
+                    socket.emit('status-update', { message: `${recipient.user.tag} gruptan ayrıldı, geri ekleniyor!`, type: 'warning' });
+                    setTimeout(() => channel.addMember(recipient.user.id).catch(console.error), 1000);
+                }
+            };
+
+            panelClient.on('channelRecipientRemove', trollGroupListener);
+
+            socket.emit('troll-group-status', { isActive: true });
+            socket.emit('status-update', { message: 'Troll grup başarıyla oluşturuldu ve aktif!', type: 'success' });
+
+        } catch (error) {
+            console.error("Troll grup hatası:", error);
+            socket.emit('status-update', { message: `Grup oluşturulamadı: ${error.message}`, type: 'error' });
+        }
+    });
+
+    socket.on('stop-troll-group', () => {
+        if (trollGroupListener) {
+            panelClient.removeListener('channelRecipientRemove', trollGroupListener);
+        }
+        trollGroupChannel = null;
+        trollGroupListener = null;
+        socket.emit('troll-group-status', { isActive: false });
+        socket.emit('status-update', { message: 'Troll grup durduruldu.', type: 'info' });
     });
 
     socket.on('get-streamer-bots', () => updateStreamerStatus());
@@ -619,91 +557,6 @@ io.on('connection', (socket) => {
     socket.on('stop-streamer', ({ token }) => stopStreamer(token));
     socket.on('toggle-afk', (status) => { afkEnabled = status; });
     socket.on('switch-account', (token) => loginPanelClient(token));
-
-    socket.on('change-avatar', async (url) => {
-        try {
-            await panelClient.user.setAvatar(url);
-            socket.emit('status-update', { message: 'Avatar değiştirildi.', type: 'success' });
-        } catch(e) { socket.emit('status-update', { message: 'Avatar değiştirilemedi: ' + e.message, type: 'error' }); }
-    });
-    
-    socket.on('change-status', async (data) => {
-        try {
-            const activity = {};
-            if (data.activity.name) {
-                activity.type = data.activity.type;
-                activity.name = data.activity.name;
-                if (data.activity.type === 'STREAMING' && data.activity.url) {
-                    activity.url = data.activity.url;
-                }
-            }
-            panelClient.user.setPresence({ status: data.status, activities: activity.name ? [activity] : [] });
-            socket.emit('status-update', { message: 'Durum değiştirildi.', type: 'success' });
-        } catch (error) { socket.emit('status-update', { message: 'Durum değiştirilemedi: ' + error.message, type: 'error' }); }
-    });
-
-    socket.on('ghost-ping', async (data) => {
-        try {
-            const channel = await panelClient.channels.fetch(data.channelId);
-            const msg = await channel.send(`<@${data.userId}>`);
-            await msg.delete();
-            socket.emit('status-update', { message: 'Ghost ping gönderildi.', type: 'success' });
-        } catch(e) { socket.emit('status-update', { message: 'Gönderilemedi: ' + e.message, type: 'error' }); }
-    });
-
-    socket.on('clean-dm', async (data) => {
-        try {
-            const user = await panelClient.users.fetch(data.userId).catch(() => null);
-            if (!user) throw new Error('Kullanıcı bulunamadı.');
-            
-            const dmChannel = await user.createDM();
-            const messages = await dmChannel.messages.fetch({ limit: 100 });
-            const userMessages = messages.filter(m => m.author.id === panelClient.user.id);
-            
-            let count = 0;
-            for (const message of userMessages.values()) {
-                await message.delete(); count++;
-                await new Promise(resolve => setTimeout(resolve, 350));
-            }
-            socket.emit('status-update', { message: `${count} mesaj silindi.`, type: 'success' });
-        } catch (error) { socket.emit('status-update', { message: 'DM temizlenemedi: ' + error.message, type: 'error' }); }
-    });
-
-    socket.on('toggle-spam', async (data) => {
-        if (spamTimeout) {
-            clearTimeout(spamTimeout); spamTimeout = null;
-            if (spammerClient) spammerClient.destroy(); spammerClient = null;
-            socket.emit('spam-status-change', false);
-            socket.emit('status-update', { message: 'Spam durduruldu.', type: 'info' });
-            return;
-        }
-        spammerClient = new Client({ checkUpdate: false });
-        try {
-            await spammerClient.login(data.token);
-            const user = await spammerClient.users.fetch(data.userId);
-            socket.emit('spam-status-change', true);
-            socket.emit('status-update', { message: 'Spam başlatıldı!', type: 'success' });
-            
-            const spamLoop = () => {
-                if(!spamTimeout) return;
-                const messageCount = data.smartMode ? Math.floor(Math.random() * 5) + 1 : 1;
-                const delay = data.smartMode ? (Math.floor(Math.random() * 3000) + parseInt(data.delay)) : parseInt(data.delay);
-                for (let i = 0; i < messageCount; i++) {
-                    const msg = data.ping ? `<@${data.userId}> ${data.message}` : data.message;
-                    user.send(msg).catch(() => {
-                        clearTimeout(spamTimeout); spamTimeout = null;
-                        if (spammerClient) spammerClient.destroy(); spammerClient = null;
-                        socket.emit('spam-status-change', false);
-                        socket.emit('status-update', { message: 'Spam durduruldu (hedef engellemiş olabilir).', type: 'error' });
-                    });
-                }
-                spamTimeout = setTimeout(spamLoop, delay);
-            };
-            spamTimeout = setTimeout(spamLoop, 0);
-        } catch (e) {
-            socket.emit('status-update', { message: 'Spam için geçersiz Token: ' + e.message, type: 'error' });
-        }
-    });
 });
 
 // ---- SUNUCUYU BAŞLAT ----
