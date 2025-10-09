@@ -3,6 +3,20 @@ const { Collection } = require('discord.js-selfbot-v13');
 // API limitlerine takılmamak için bekleme fonksiyonu
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Discord Kanal Türleri için sabitler
+const CHANNEL_TYPES = {
+    GUILD_TEXT: 0,
+    GUILD_VOICE: 2,
+    GUILD_CATEGORY: 4,
+    GUILD_ANNOUNCEMENT: 5,
+    GUILD_STAGE_VOICE: 13,
+    GUILD_FORUM: 15,
+};
+
+// Klonlanmasını istemediğimiz veya klonlanamayan kanal türleri (örn: thread'ler)
+const IGNORED_CHANNEL_TYPES = [10, 11, 12, 14];
+
+
 const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
     try {
         const sourceGuild = await client.guilds.fetch(sourceGuildId);
@@ -33,7 +47,7 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
             await wait(350);
         }
         for (const role of (await newGuild.roles.fetch()).values()) {
-            if (!role.managed && role.id !== newGuild.id) { // @everyone ve entegrasyon rollerini silme
+            if (!role.managed && role.id !== newGuild.id) {
                 await role.delete().catch(() => {});
                 await wait(350);
             }
@@ -64,22 +78,24 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
         }
         socket.emit('status-update', { message: 'Roller başarıyla kopyalandı.', type: 'success' });
 
-        // 4. Kanalları kopyala (GÜVENİLİR YÖNTEM)
+        // 4. Kanalları kopyala (En Akıllı Yöntem)
         socket.emit('status-update', { message: 'Kanallar ve kategoriler kopyalanıyor...', type: 'info' });
         const categoryMap = new Collection();
-        const sourceChannels = [...sourceGuild.channels.cache.values()].sort((a, b) => a.position - b.position);
+        const sourceChannels = [...sourceGuild.channels.cache.values()]
+            .filter(c => !IGNORED_CHANNEL_TYPES.includes(c.type))
+            .sort((a, b) => a.position - b.position);
         
-        // Önce Kategorileri oluştur ve haritaya ekle
-        for (const sourceChannel of sourceChannels.filter(c => c.type === 4 /* GuildCategory */)) {
+        // Önce Kategorileri oluştur
+        for (const sourceChannel of sourceChannels.filter(c => c.type === CHANNEL_TYPES.GUILD_CATEGORY)) {
             try {
-                const permissionOverwrites = sourceChannel.permissionOverwrites.cache.map(ow => ({
+                const permissionOverwrites = sourceChannel.permissionOverwrites?.cache.map(ow => ({
                     id: roleMap.get(ow.id)?.id,
                     allow: ow.allow.bitfield,
                     deny: ow.deny.bitfield,
                 })).filter(ow => ow.id);
                 
                 const newCategory = await newGuild.channels.create(sourceChannel.name, {
-                    type: 4, // GuildCategory
+                    type: CHANNEL_TYPES.GUILD_CATEGORY,
                     permissionOverwrites,
                     position: sourceChannel.position,
                 });
@@ -88,39 +104,72 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
             } catch (e) { console.error(`Kategori kopyalanamadı: ${sourceChannel.name}`, e.message); }
         }
 
-        // Sonra diğer kanalları oluştur ve oluşturduktan sonra kategorisine ata
-        for (const sourceChannel of sourceChannels.filter(c => c.type !== 4 /* GuildCategory */)) {
+        // Sonra diğer tüm kanalları türlerine göre işle
+        for (const sourceChannel of sourceChannels.filter(c => c.type !== CHANNEL_TYPES.GUILD_CATEGORY)) {
              try {
-                const permissionOverwrites = sourceChannel.permissionOverwrites.cache.map(ow => ({
+                const permissionOverwrites = sourceChannel.permissionOverwrites?.cache.map(ow => ({
                     id: roleMap.get(ow.id)?.id,
                     allow: ow.allow.bitfield,
                     deny: ow.deny.bitfield,
                 })).filter(ow => ow.id);
 
                 const channelOptions = {
-                    type: sourceChannel.type,
-                    topic: sourceChannel.topic,
-                    nsfw: sourceChannel.nsfw,
-                    rateLimitPerUser: sourceChannel.rateLimitPerUser,
+                    name: sourceChannel.name,
                     position: sourceChannel.position,
-                    bitrate: sourceChannel.bitrate,
-                    userLimit: sourceChannel.userLimit,
                     permissionOverwrites,
                 };
+                
+                // Kanal türüne göre özellikleri ayarla
+                switch (sourceChannel.type) {
+                    case CHANNEL_TYPES.GUILD_ANNOUNCEMENT: // Duyuru kanalı ise, normal metin kanalı olarak oluştur
+                        channelOptions.type = CHANNEL_TYPES.GUILD_TEXT;
+                        channelOptions.topic = sourceChannel.topic;
+                        channelOptions.nsfw = sourceChannel.nsfw;
+                        channelOptions.rateLimitPerUser = sourceChannel.rateLimitPerUser;
+                        socket.emit('status-update', { message: `Duyuru kanalı '${sourceChannel.name}' normal metin kanalı olarak kopyalandı.`, type: 'warning' });
+                        break;
+                    
+                    case CHANNEL_TYPES.GUILD_TEXT:
+                        channelOptions.type = CHANNEL_TYPES.GUILD_TEXT;
+                        channelOptions.topic = sourceChannel.topic;
+                        channelOptions.nsfw = sourceChannel.nsfw;
+                        channelOptions.rateLimitPerUser = sourceChannel.rateLimitPerUser;
+                        break;
+                    
+                    case CHANNEL_TYPES.GUILD_VOICE:
+                        channelOptions.type = CHANNEL_TYPES.GUILD_VOICE;
+                        // Sunucu boost'u kaynaklı bitrate hatasını önle
+                        channelOptions.bitrate = Math.min(sourceChannel.bitrate, newGuild.maximumBitrate || 96000);
+                        channelOptions.userLimit = sourceChannel.userLimit;
+                        break;
+                        
+                    case CHANNEL_TYPES.GUILD_STAGE_VOICE:
+                         channelOptions.type = CHANNEL_TYPES.GUILD_STAGE_VOICE;
+                         channelOptions.bitrate = Math.min(sourceChannel.bitrate, newGuild.maximumBitrate || 96000);
+                         channelOptions.userLimit = sourceChannel.userLimit;
+                         break;
 
-                // Kanalı kategorisiz oluştur
+                    case CHANNEL_TYPES.GUILD_FORUM:
+                        channelOptions.type = CHANNEL_TYPES.GUILD_FORUM;
+                        channelOptions.topic = sourceChannel.topic;
+                        channelOptions.nsfw = sourceChannel.nsfw;
+                        break;
+                        
+                    default: // Bilinmeyen veya desteklenmeyen türleri atla
+                        console.log(`Atlanan kanal türü: ${sourceChannel.name} (${sourceChannel.type})`);
+                        continue; 
+                }
+
                 const newChannel = await newGuild.channels.create(sourceChannel.name, channelOptions);
                 
-                // Eğer kaynak kanalın bir kategorisi varsa, yeni kanalı yeni kategoriye taşı
                 if (sourceChannel.parentId) {
                     const newParentId = categoryMap.get(sourceChannel.parentId);
                     if (newParentId) {
                         await newChannel.setParent(newParentId);
                     }
                 }
-
-                await wait(350);
-            } catch(e) { console.error(`Kanal kopyalanamadı: ${sourceChannel.name}`, e.message); }
+                await wait(400);
+            } catch(e) { console.error(`Kanal kopyalanamadı: ${sourceChannel.name}`, e.message, e.stack); }
         }
         socket.emit('status-update', { message: 'Kanallar ve izinler başarıyla kopyalandı.', type: 'success' });
         
@@ -143,4 +192,4 @@ const cloneServer = async (client, sourceGuildId, newServerName, socket) => {
 };
 
 module.exports = cloneServer;
-                                      
+        
