@@ -16,7 +16,6 @@ const executeRaid = require('./commands/raid.js');
 const cloneServer = require('./commands/server-cloner.js');
 const { startSpam, stopSpam } = require('./commands/dm-spammer.js');
 const cleanDmMessages = require('./commands/dm-cleaner.js');
-// YENİ RPC MODÜLÜNÜN İÇE AKTARILMASI (FONKSİYON İSİMLERİ DEĞİŞTİ)
 const { stopRichPresence, setListeningRpc, setWatchingRpc } = require('./commands/rpc-manager.js');
 
 const app = express();
@@ -273,24 +272,24 @@ function loginPanelClient(token) {
 
         // --- YENİ RPC KOMUTLARI ---
         
-        // ZAMANLAYICILI RPC İÇİN KOMUT ("Spotify dinliyor" yazar)
+        // Sadece "Spotify dinliyor" yazan RPC için komut.
         if (command === "twdlisten") {
             const imageKey = args[0];
             if (!imageKey) {
                 return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdlisten twd_resim`').catch(console.error);
             }
             setListeningRpc(panelClient, { largeImageKey: imageKey });
-            msg.edit(`✅ **Zamanlayıcılı** "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
+            msg.edit(`✅ **Sadece Dinliyor** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
         }
         
-        // "İZLİYOR" YAZAN RPC İÇİN KOMUT (Zamanlayıcı olmaz)
+        // YENİ "İZLİYOR" + ZAMANLAYICI RPC İÇİN KOMUT
         if (command === "twdwatch") {
             const imageKey = args[0];
             if (!imageKey) {
                 return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdwatch twd_resim`').catch(console.error);
             }
             setWatchingRpc(panelClient, { largeImageKey: imageKey });
-            msg.edit(`✅ **"İzliyor"** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
+            msg.edit(`✅ **Zamanlayıcılı "İzliyor"** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
         }
 
         // TÜM RPC'LERİ DURDURMAK İÇİN KOMUT
