@@ -110,26 +110,34 @@ function createHelpEmbed(client) {
     const embed = new MessageEmbed()
         .setTitle(`${client.user.username} Komut Menüsü`)
         .setDescription(`Toplam **${commands.length}** adet komut bulunmaktadır.\nWeb Panel üzerinden komutları aratabilirsiniz.`)
-        .setColor('#8A2BE2') // Mor renk
+        .setColor('#8A2BE2')
         .setThumbnail(client.user.displayAvatarURL())
         .setFooter({ text: `Stark's Industries | .help` })
         .setTimestamp();
 
-    // Komutları 2 sütun halinde ekleyelim
-    let commandString1 = '';
-    let commandString2 = '';
-    const half = Math.ceil(commands.length / 2);
+    const fields = [];
+    let currentFieldValue = '';
+    let part = 1;
 
-    commands.slice(0, half).forEach(cmd => {
-        commandString1 += `**.${cmd.name}** - ${cmd.desc}\n`;
-    });
+    for (const cmd of commands) {
+        const commandLine = `**.${cmd.name}** - ${cmd.desc}\n`;
+        // Mevcut alana yeni komutu ekleyince 1024 karakter sınırını aşıp aşmayacağını kontrol et
+        if (currentFieldValue.length + commandLine.length > 1024) {
+            // Eğer aşıyorsa, dolu olan alanı listeye ekle
+            fields.push({ name: `Komutlar (Bölüm ${part})`, value: currentFieldValue, inline: false });
+            // Alanı temizle ve bölüm sayısını artır
+            currentFieldValue = '';
+            part++;
+        }
+        // Komutu mevcut alana ekle
+        currentFieldValue += commandLine;
+    }
 
-    commands.slice(half, commands.length).forEach(cmd => {
-        commandString2 += `**.${cmd.name}** - ${cmd.desc}\n`;
-    });
-
-    embed.addField('Komutlar (1)', commandString1, true);
-    embed.addField('Komutlar (2)', commandString2, true);
+    // Döngü bittikten sonra kalan son kısmı da listeye ekle
+    fields.push({ name: `Komutlar (Bölüm ${part})`, value: currentFieldValue, inline: false });
+    
+    // Deprecation uyarısını gidermek için addField yerine addFields kullan
+    embed.addFields(fields);
     
     return embed;
 }
@@ -138,4 +146,4 @@ module.exports = {
     commands,
     createHelpEmbed,
 };
-  
+        
