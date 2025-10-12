@@ -19,6 +19,7 @@
             </div>
             <ul id="nav-menu">
                 <li class="nav-item"><a href="#home" class="nav-link active"><i class="fa-solid fa-solar-panel"></i> <span>Ana Sayfa</span></a></li>
+                <li class="nav-item"><a href="#commands" class="nav-link"><i class="fa-solid fa-terminal"></i> <span>Komutlar</span></a></li>
                 <li class="nav-item"><a href="#bot" class="nav-link"><i class="fa-solid fa-robot"></i> <span>Bot Yönetimi</span></a></li>
                 <li class="nav-item"><a href="#streamer" class="nav-link"><i class="fa-solid fa-satellite-dish"></i> <span>Yayın Yönetimi</span></a></li>
                 <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-id-card"></i> <span>Profil Ayarları</span></a></li>
@@ -53,6 +54,21 @@
                 <div class="setting-row">
                     <label>AFK Modu (Size DM atanlara otomatik mesaj gönderir)</label>
                     <button id="toggle-afk" class="toggle-switch" data-status="true"><i></i></button>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <template id="commands-template">
+        <section id="commands" class="content-section">
+            <div class="card large-card">
+                <h3><i class="fa-solid fa-terminal"></i> Komut Listesi</h3>
+                <p>Aşağıdaki listeden tüm komutları ve açıklamalarını görebilir, arama çubuğunu kullanarak istediğiniz komutu kolayca bulabilirsiniz.</p>
+                <div class="command-search-container" style="margin-top: 1rem;">
+                    <input type="text" id="command-search-input" placeholder="Komut ara (örn: ping, avatar)...">
+                </div>
+                <div id="command-list-container" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;">
+                    <p>Komutlar yükleniyor...</p>
                 </div>
             </div>
         </section>
