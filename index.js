@@ -1,5 +1,5 @@
 require('./polyfill.js');
-const { Client } = require("discord.js-selfbot-v13");
+const { Client, MessageEmbed } = require("discord.js-selfbot-v13"); // MessageEmbed eklendi
 const { DiscordStreamClient } = require("discord-stream-client");
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, NoSubscriberBehavior, VoiceConnectionStatus } = require('@discordjs/voice');
 const fs = require('fs');
@@ -14,8 +14,8 @@ const config = require('./config.js');
 
 const executeRaid = require('./commands/raid.js');
 const cloneServer = require('./commands/server-cloner.js');
-const { startSpam, stopSpam } = require('./commands/dm-spammer.js');
-const cleanDmMessages = require('./commands/dm-cleaner.js');
+const { startSpam, stopSpam } = require('./commands:dm-spammer.js');
+const cleanDmMessages = require('./commands:dm-cleaner.js');
 const { stopRichPresence, setListeningRpc, setWatchingRpc } = require('./commands/rpc-manager.js');
 const { commands, createHelpEmbed } = require('./commands/help.js'); 
 
@@ -256,16 +256,30 @@ function loginPanelClient(token) {
         const args = msg.content.slice(prefix.length).trim().split(/ +/g);
         const command = args.shift().toLowerCase();
         
+        // ===============================================================================================
+        // ANA KOMUT İŞLEYİCİ - TÜM KOMUTLARIN MANTIĞI BURADA YER ALIR
+        // ===============================================================================================
+        
         if (command === "help") {
-            const helpEmbed = createHelpEmbed(panelClient);
-            msg.channel.send({ embeds: [helpEmbed] }).catch(err => {
+            const page = parseInt(args[0]) || 1;
+            const helpEmbed = createHelpEmbed(panelClient, page);
+            
+            try {
+                if (typeof helpEmbed === 'string') {
+                    await msg.channel.send(helpEmbed);
+                } else {
+                    await msg.channel.send({ embeds: [helpEmbed] });
+                }
+            } catch (err) {
                 console.error("Help komutu hatası:", err);
-                msg.channel.send("Yardım menüsü gösterilirken bir hata oluştu. Muhtemelen çok fazla komut var.").catch();
-            });
+                // Hata durumunda kullanıcıya bilgi ver
+                await msg.channel.send("Yardım menüsü gönderilirken bir hata oluştu.").catch();
+            }
         }
 
         if (command === "ping") {
-            msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`).catch(() => msg.channel.send(`Pong! Gecikme: **${panelClient.ws.ping}ms**`));
+            const m = await msg.channel.send("Ölçülüyor...");
+            m.edit(`Pong! Gecikme: **${m.createdTimestamp - msg.createdTimestamp}ms** | API Gecikmesi: **${panelClient.ws.ping}ms**`).catch();
         }
         
         if (command === "dmall") {
@@ -282,26 +296,54 @@ function loginPanelClient(token) {
 
         if (command === "twdlisten") {
             const imageKey = args[0];
-            if (!imageKey) {
-                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdlisten twd_resim`').catch();
-            }
+            if (!imageKey) return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdlisten twd_resim`').catch();
             setListeningRpc(panelClient, { largeImageKey: imageKey });
-            msg.edit(`✅ **Sadece Dinliyor** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch();
+            msg.edit(`✅ **Sadece Dinliyor** tipli "The Walking Dead" RPC ayarlandı!`).catch();
         }
         
         if (command === "twdwatch") {
             const imageKey = args[0];
-            if (!imageKey) {
-                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdwatch twd_resim`').catch();
-            }
+            if (!imageKey) return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdwatch twd_resim`').catch();
             setWatchingRpc(panelClient, { largeImageKey: imageKey });
-            msg.edit(`✅ **Zamanlayıcılı "İzliyor"** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch();
+            msg.edit(`✅ **Zamanlayıcılı "İzliyor"** tipli "The Walking Dead" RPC ayarlandı!`).catch();
         }
 
         if (command === "stoprpc") {
             stopRichPresence(panelClient);
             msg.edit("✅ RPC başarıyla temizlendi.").catch();
         }
+
+        // ===============================================================================================
+        // YENİ EKLENEN ÖRNEK KOMUTLAR - DİĞER KOMUTLARI BU ŞEKİLDE EKLEYEBİLİRSİN
+        // ===============================================================================================
+
+        if (command === "yazıtura") {
+            const result = Math.random() < 0.5 ? 'Yazı' : 'Tura';
+            msg.edit(`🎲 Sonuç: **${result}**`).catch();
+        }
+
+        if (command === "tersyaz") {
+            const text = args.join(' ');
+            if (!text) return msg.edit('Lütfen tersten yazılacak bir metin girin.').catch();
+            const reversedText = text.split('').reverse().join('');
+            msg.edit(reversedText).catch();
+        }
+
+        if (command === "avatar") {
+            const user = msg.mentions.users.first() || panelClient.users.cache.get(args[0]) || msg.author;
+            const avatarEmbed = new MessageEmbed()
+                .setColor("#8A2BE2")
+                .setTitle(`${user.username} adlı kullanıcının avatarı`)
+                .setImage(user.displayAvatarURL({ dynamic: true, size: 4096 }))
+                .setFooter({ text: `${msg.author.username} tarafından istendi.`});
+            
+            await msg.delete().catch(); // Komutu sil
+            await msg.channel.send({ embeds: [avatarEmbed] }).catch();
+        }
+        
+        // YENİ KOMUTLARI BU SATIRIN ALTINA EKLEMEYE DEVAM ET
+        // if (command === "espri") { ... }
+
     });
     panelClient.login(token).catch(error => {
         console.error('[Web Panel] Giriş hatası:', error.message);
