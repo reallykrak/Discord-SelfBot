@@ -1,23 +1,23 @@
 const { MessageEmbed } = require('discord.js-selfbot-v13');
 
-// Komutların tam listesi
+// Komutların tam listesi. Yeni komutları buraya ekleyebilirsin.
 const commands = [
-    { name: 'help', desc: 'Bu yardım menüsünü gösterir.' },
+    { name: 'help [sayfa]', desc: 'Bu yardım menüsünü sayfa olarak gösterir.' },
     { name: 'ping', desc: 'Botun gecikme süresini gösterir.' },
+    { name: 'yazıtura', desc: 'Yazı tura atar.' },
+    { name: 'tersyaz <yazı>', desc: 'Yazdığınız metni tersten yazar.' },
+    { name: 'avatar [@kullanıcı]', desc: 'Etiketlediğiniz kişinin veya kendi avatarınızı gösterir.' },
     { name: 'dmall <mesaj>', desc: 'Sunucudaki herkese belirttiğiniz mesajı gönderir.' },
     { name: 'twdwatch <resim_key>', desc: 'Zamanlayıcılı "The Walking Dead" RPC\'si başlatır.' },
     { name: 'twdlisten <resim_key>', desc: '"Spotify Dinliyor" RPC\'si başlatır.' },
     { name: 'stoprpc', desc: 'Aktif olan tüm RPC aktivitelerini durdurur.' },
     { name: 'ascii <yazı>', desc: 'Yazdığınız metni ASCII sanatına dönüştürür.' },
     { name: 'hesapla <işlem>', desc: 'Basit matematiksel işlemler yapar. Örn: .hesapla 5*5' },
-    { name: 'avatar [@kullanıcı]', desc: 'Etiketlediğiniz kişinin veya kendi avatarınızı gösterir.' },
     { name: 'sunucubilgi', desc: 'Bulunulan sunucu hakkında detaylı bilgi verir.' },
     { name: 'kullanıcıbilgi [@kullanıcı]', desc: 'Belirtilen kullanıcı hakkında bilgi verir.' },
     { name: 'say <mesaj>', desc: 'Yazdığınız mesajı botun ağzından tekrar gönderir ve komutu siler.' },
     { name: 'embed <başlık> | <mesaj>', desc: 'Basit bir embed mesajı oluşturur.' },
-    { name: 'yazıtura', desc: 'Yazı tura atar.' },
     { name: 'zar', desc: '1-6 arasında rastgele bir zar atar.' },
-    { name: 'tersyaz <yazı>', desc: 'Yazdığınız metni tersten yazar.' },
     { name: 'alkış <yazı>', desc: 'Yazdığınız metnin aralarına alkış emojisi koyar.' },
     { name: 'havadurumu <şehir>', desc: 'Belirtilen şehrin hava durumunu (sahte) esprili bir dille söyler.' },
     { name: 'espri', desc: 'Soğuk bir espri yapar.' },
@@ -102,42 +102,36 @@ const commands = [
 ];
 
 /**
- * Komut listesini Discord embed formatında oluşturur.
+ * Komut listesini sayfalara bölünmüş bir Discord embed formatında oluşturur.
  * @param {Client} client - Discord client nesnesi.
- * @returns {MessageEmbed}
+ * @param {number} page - Gösterilecek sayfa numarası.
+ * @returns {MessageEmbed | string}
  */
-function createHelpEmbed(client) {
-    const embed = new MessageEmbed()
-        .setTitle(`${client.user.username} Komut Menüsü`)
-        .setDescription(`Toplam **${commands.length}** adet komut bulunmaktadır.\nWeb Panel üzerinden komutları aratabilirsiniz.`)
-        .setColor('#8A2BE2')
-        .setThumbnail(client.user.displayAvatarURL())
-        .setFooter({ text: `Stark's Industries | .help` })
-        .setTimestamp();
+function createHelpEmbed(client, page = 1) {
+    const commandsPerPage = 20; // Her sayfada gösterilecek komut sayısı
+    const totalPages = Math.ceil(commands.length / commandsPerPage);
 
-    const fields = [];
-    let currentFieldValue = '';
-    let part = 1;
-
-    for (const cmd of commands) {
-        const commandLine = `**.${cmd.name}** - ${cmd.desc}\n`;
-        // Mevcut alana yeni komutu ekleyince 1024 karakter sınırını aşıp aşmayacağını kontrol et
-        if (currentFieldValue.length + commandLine.length > 1024) {
-            // Eğer aşıyorsa, dolu olan alanı listeye ekle
-            fields.push({ name: `Komutlar (Bölüm ${part})`, value: currentFieldValue, inline: false });
-            // Alanı temizle ve bölüm sayısını artır
-            currentFieldValue = '';
-            part++;
-        }
-        // Komutu mevcut alana ekle
-        currentFieldValue += commandLine;
+    if (page < 1 || page > totalPages) {
+        return `Geçersiz sayfa numarası. Lütfen 1 ile ${totalPages} arasında bir sayı girin.`;
     }
 
-    // Döngü bittikten sonra kalan son kısmı da listeye ekle
-    fields.push({ name: `Komutlar (Bölüm ${part})`, value: currentFieldValue, inline: false });
+    const startIndex = (page - 1) * commandsPerPage;
+    const endIndex = startIndex + commandsPerPage;
+    const pageCommands = commands.slice(startIndex, endIndex);
+
+    const embed = new MessageEmbed()
+        .setTitle(`${client.user.username} Komut Menüsü`)
+        .setColor('#8A2BE2')
+        .setThumbnail(client.user.displayAvatarURL())
+        .setFooter({ text: `Sayfa ${page} / ${totalPages} | Toplam ${commands.length} komut` })
+        .setTimestamp();
     
-    // Deprecation uyarısını gidermek için addField yerine addFields kullan
-    embed.addFields(fields);
+    let description = '';
+    pageCommands.forEach(cmd => {
+        description += `**.${cmd.name}** - ${cmd.desc}\n`;
+    });
+
+    embed.setDescription(description);
     
     return embed;
 }
@@ -146,4 +140,4 @@ module.exports = {
     commands,
     createHelpEmbed,
 };
-        
+    
