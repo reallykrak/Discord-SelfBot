@@ -9,9 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const volumeBtn = document.getElementById('volume-control-btn');
     
     let botInfo = {};
+    let allCommands = []; // Tüm komutları saklamak için
     
     const templates = {
         home: document.getElementById('home-template')?.innerHTML,
+        commands: document.getElementById('commands-template')?.innerHTML,
         bot: document.getElementById('bot-template')?.innerHTML,
         streamer: document.getElementById('streamer-template')?.innerHTML,
         profile: document.getElementById('profile-template')?.innerHTML,
@@ -86,6 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (page === 'streamer') {
             socket.emit('get-streamer-bots');
         }
+        // Komutlar sayfasına gelindiğinde komutları sunucudan iste
+        if (page === 'commands') {
+            socket.emit('get-commands');
+        }
         
         navLinks.forEach(link => {
             link.classList.toggle('active', link.getAttribute('href') === `#${page}`);
@@ -96,6 +102,9 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (page) {
             case 'home':
                 document.getElementById('toggle-afk')?.addEventListener('click', handleAfkToggle);
+                break;
+            case 'commands':
+                document.getElementById('command-search-input')?.addEventListener('input', handleCommandSearch);
                 break;
             case 'bot':
                 document.getElementById('bot-install-btn')?.addEventListener('click', () => socket.emit('bot:install'));
@@ -145,6 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('status-update', ({ message, type }) => showToast(message, type));
     socket.on('spam-status-change', (isActive) => updateToggleButton(document.getElementById('spam-btn'), isActive, "Spam'ı Durdur", "Spam'ı Başlat"));
     socket.on('streamer-status-update', renderStreamerBots);
+    socket.on('command-list', (commands) => {
+        allCommands = commands;
+        renderCommands(allCommands);
+    });
     
     socket.on('troll-group-status', ({ isActive }) => {
         const startBtn = document.getElementById('start-troll-group-btn');
@@ -185,6 +198,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (botInfo.avatar && userAvatar) userAvatar.src = botInfo.avatar;
     };
     
+    function renderCommands(commandsToRender) {
+        const container = document.getElementById('command-list-container');
+        if (!container) return;
+
+        if (commandsToRender.length === 0) {
+            container.innerHTML = '<p>Aramanızla eşleşen komut bulunamadı.</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        commandsToRender.forEach(cmd => {
+            const commandDiv = document.createElement('div');
+            commandDiv.className = 'command-item';
+            commandDiv.innerHTML = `
+                <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px;">
+                    <strong style="color: var(--primary-color);">.${cmd.name}</strong>
+                    <p style="color: var(--text-muted-color); margin-top: 0.5rem;">${cmd.desc}</p>
+                </div>
+            `;
+            container.appendChild(commandDiv);
+        });
+    }
+
+    function handleCommandSearch(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const filteredCommands = allCommands.filter(cmd => 
+            cmd.name.toLowerCase().includes(searchTerm) || 
+            cmd.desc.toLowerCase().includes(searchTerm)
+        );
+        renderCommands(filteredCommands);
+    }
+
     function handleBotCommandSend() {
         const input = document.getElementById('bot-command-input');
         if (input && input.value) {
@@ -331,4 +376,4 @@ document.addEventListener('DOMContentLoaded', () => {
     switchPage(window.location.hash);
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
 });
-                
+        
