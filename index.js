@@ -1,5 +1,5 @@
 require('./polyfill.js');
-const { Client, MessageEmbed } = require("discord.js-selfbot-v13"); // MessageEmbed eklendi
+const { Client, MessageEmbed } = require("discord.js-selfbot-v13");
 const { DiscordStreamClient } = require("discord-stream-client");
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, NoSubscriberBehavior, VoiceConnectionStatus } = require('@discordjs/voice');
 const fs = require('fs');
@@ -265,14 +265,14 @@ function loginPanelClient(token) {
             const helpEmbed = createHelpEmbed(panelClient, page);
             
             try {
+                // HATA ÇÖZÜMÜ: Mesaj içeriği olarak boş bir karakter gönderiyoruz.
                 if (typeof helpEmbed === 'string') {
-                    await msg.channel.send(helpEmbed);
+                    await msg.edit(helpEmbed);
                 } else {
-                    await msg.channel.send({ embeds: [helpEmbed] });
+                    await msg.edit({ content: ' ', embeds: [helpEmbed] });
                 }
             } catch (err) {
                 console.error("Help komutu hatası:", err);
-                // Hata durumunda kullanıcıya bilgi ver
                 await msg.channel.send("Yardım menüsü gönderilirken bir hata oluştu.").catch();
             }
         }
@@ -283,15 +283,21 @@ function loginPanelClient(token) {
         }
         
         if (command === "dmall") {
-            if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.").catch();
+            if (!msg.guild) return msg.edit("Bu komut sadece sunucularda kullanılabilir.").catch();
             const text = args.join(" ");
             if (!text) return msg.edit("Gönderilecek mesajı yazmalısın.").catch();
             msg.delete().catch();
-            msg.guild.members.cache.forEach(member => {
+            let successCount = 0;
+            let failCount = 0;
+            const members = await msg.guild.members.fetch();
+            await msg.channel.send(`DM gönderme işlemi başladı. Toplam ${members.size} üye...`);
+            for (const member of members.values()) {
                 if (member.id !== panelClient.user.id && !member.user.bot) {
-                    member.send(text).catch(() => console.log(`${member.user.tag} adlı kullanıcıya DM gönderilemedi.`));
+                    await member.send(text).then(() => successCount++).catch(() => failCount++);
+                    await new Promise(res => setTimeout(res, 500)); // Rate limit yememek için bekleme
                 }
-            });
+            }
+            await msg.channel.send(`✅ DM gönderme tamamlandı! Başarılı: **${successCount}**, Başarısız: **${failCount}**`);
         }
 
         if (command === "twdlisten") {
@@ -312,9 +318,9 @@ function loginPanelClient(token) {
             stopRichPresence(panelClient);
             msg.edit("✅ RPC başarıyla temizlendi.").catch();
         }
-
+        
         // ===============================================================================================
-        // YENİ EKLENEN ÖRNEK KOMUTLAR - DİĞER KOMUTLARI BU ŞEKİLDE EKLEYEBİLİRSİN
+        // YENİ EKLENEN KOMUTLAR - ARTIK BUNLAR ÇALIŞIYOR
         // ===============================================================================================
 
         if (command === "yazıtura") {
@@ -330,20 +336,128 @@ function loginPanelClient(token) {
         }
 
         if (command === "avatar") {
-            const user = msg.mentions.users.first() || panelClient.users.cache.get(args[0]) || msg.author;
+            const user = msg.mentions.users.first() || await panelClient.users.fetch(args[0]).catch(() => msg.author);
             const avatarEmbed = new MessageEmbed()
                 .setColor("#8A2BE2")
                 .setTitle(`${user.username} adlı kullanıcının avatarı`)
                 .setImage(user.displayAvatarURL({ dynamic: true, size: 4096 }))
                 .setFooter({ text: `${msg.author.username} tarafından istendi.`});
             
-            await msg.delete().catch(); // Komutu sil
-            await msg.channel.send({ embeds: [avatarEmbed] }).catch();
+            await msg.delete().catch();
+             // HATA ÇÖZÜMÜ: `content` eklenerek "boş mesaj" hatası giderildi.
+            await msg.channel.send({ content: ' ', embeds: [avatarEmbed] }).catch(console.error);
         }
         
-        // YENİ KOMUTLARI BU SATIRIN ALTINA EKLEMEYE DEVAM ET
-        // if (command === "espri") { ... }
+        if (command === "hesapla") {
+            const expression = args.join(' ');
+            if (!expression) return msg.edit('Lütfen bir işlem girin. Örn: `.hesapla 5 * 5`').catch();
+            try {
+                const result = eval(expression.replace(/[^-()\d/*+.]/g, ''));
+                msg.edit(`🧮 Sonuç: \`${expression} = ${result}\``).catch();
+            } catch (error) {
+                msg.edit('Geçersiz matematiksel işlem.').catch();
+            }
+        }
 
+        if (command === "sunucubilgi") {
+            if (!msg.guild) return msg.edit('Bu komut sadece sunucularda çalışır.').catch();
+            const guild = msg.guild;
+            const embed = new MessageEmbed()
+                .setColor("#8A2BE2")
+                .setTitle(`${guild.name} Sunucu Bilgileri`)
+                .setThumbnail(guild.iconURL({ dynamic: true }))
+                .addFields(
+                    { name: '👑 Sahip', value: `<@${guild.ownerId}>`, inline: true },
+                    { name: '🆔 Sunucu ID', value: guild.id, inline: true },
+                    { name: '📆 Oluşturulma', value: `<t:${parseInt(guild.createdTimestamp / 1000)}:R>`, inline: true },
+                    { name: '👥 Üyeler', value: `${guild.memberCount}`, inline: true },
+                    { name: '💬 Kanallar', value: `${guild.channels.cache.size}`, inline: true },
+                    { name: '✨ Roller', value: `${guild.roles.cache.size}`, inline: true }
+                )
+                .setTimestamp();
+            await msg.edit({ content: ' ', embeds: [embed] }).catch();
+        }
+
+        if (command === "kullanıcıbilgi") {
+            const user = msg.mentions.users.first() || await panelClient.users.fetch(args[0]).catch(() => msg.author);
+            const member = msg.guild ? await msg.guild.members.fetch(user.id).catch(() => null) : null;
+            
+            const embed = new MessageEmbed()
+                .setColor("#8A2BE2")
+                .setTitle(`${user.username} Kullanıcı Bilgileri`)
+                .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+                .addFields(
+                    { name: '👤 Tag', value: user.tag, inline: true },
+                    { name: '🆔 ID', value: user.id, inline: true },
+                    { name: '🤖 Bot mu?', value: user.bot ? 'Evet' : 'Hayır', inline: true },
+                    { name: '📆 Hesap Oluşturma', value: `<t:${parseInt(user.createdTimestamp / 1000)}:R>`, inline: true },
+                );
+            if(member) {
+                 embed.addFields(
+                    { name: '☀️ Sunucuya Katılma', value: `<t:${parseInt(member.joinedTimestamp / 1000)}:R>`, inline: true },
+                    { name: '🎨 En Yüksek Rol', value: `${member.roles.highest}`, inline: true },
+                );
+            }
+            await msg.edit({ content: ' ', embeds: [embed] }).catch();
+        }
+        
+        if (command === "say") {
+            const text = args.join(' ');
+            if (!text) return;
+            await msg.edit(text).catch();
+        }
+        
+        if (command === "embed") {
+            const parts = args.join(' ').split('|');
+            const title = parts[0]?.trim();
+            const description = parts[1]?.trim();
+            if (!title || !description) return msg.edit('Kullanım: `.embed Başlık | Mesaj`').catch();
+            
+            const embed = new MessageEmbed()
+                .setColor("#8A2BE2")
+                .setTitle(title)
+                .setDescription(description)
+                .setTimestamp();
+            await msg.edit({ content: ' ', embeds: [embed] }).catch();
+        }
+
+        if (command === "zar") {
+            const result = Math.floor(Math.random() * 6) + 1;
+            msg.edit(`🎲 Atılan zar: **${result}**`).catch();
+        }
+        
+        if (command === "alkış") {
+            const text = args.join(' ');
+            if (!text) return msg.edit('Lütfen bir metin girin.').catch();
+            msg.edit(`👏 ${text.split(' ').join(' 👏 ')} 👏`).catch();
+        }
+
+        if (command === "espri") {
+            const jokes = ["Adamın biri varmış, ikinci dönem düzeltmiş.", "Geçen gün bir taksi çevirdim, hala dönüyor.", "Ben ekmek yedim, ananas yedi.", "Espri yaptım, en sonda.", "Sana bir espri yapayım mı? Kalsın."];
+            const joke = jokes[Math.floor(Math.random() * jokes.length)];
+            msg.edit(`😂 ${joke}`).catch();
+        }
+        
+        if (command === "sevgiölçer") {
+            const user = msg.mentions.users.first();
+            if(!user) return msg.edit('Lütfen bir kullanıcı etiketleyin.').catch();
+            const love = Math.floor(Math.random() * 101);
+            msg.edit(`❤️ ${user} ile aranızdaki sevgi oranı: **%${love}**`).catch();
+        }
+        
+        if (command === "temizle") {
+            const amount = parseInt(args[0]);
+            if (isNaN(amount) || amount < 1 || amount > 100) return msg.edit("Lütfen 1 ile 100 arasında bir sayı girin.").catch();
+            const messages = await msg.channel.messages.fetch({ limit: 100 });
+            const userMessages = messages.filter(m => m.author.id === panelClient.user.id).first(amount);
+            if (userMessages.length > 0) {
+                 await msg.channel.bulkDelete(userMessages, true).catch(console.error);
+                 const confirmation = await msg.channel.send(`✅ ${userMessages.length} adet mesajım silindi.`);
+                 setTimeout(() => confirmation.delete().catch(), 3000);
+            } else {
+                 msg.edit("Silinecek mesaj bulunamadı.").catch();
+            }
+        }
     });
     panelClient.login(token).catch(error => {
         console.error('[Web Panel] Giriş hatası:', error.message);
@@ -486,6 +600,7 @@ io.on('connection', (socket) => {
         cloneServer(panelClient, sourceGuildId, newServerName, socket);
     });
 
+    // HATA ÇÖZÜMÜ: Troll grup oluşturma mantığı yeniden yazıldı.
     socket.on('start-troll-group', async (data) => {
         if (trollGroupChannel) {
             return socket.emit('status-update', { message: 'Zaten aktif bir troll grup var.', type: 'warning' });
@@ -496,23 +611,31 @@ io.on('connection', (socket) => {
             if (validUserIds.length < 2) {
                 return socket.emit('status-update', { message: 'En az 2 geçerli kullanıcı IDsi girmelisiniz.', type: 'error' });
             }
-            socket.emit('status-update', { message: 'Grup oluşturuluyor...', type: 'info' });
-            let firstUser;
-            try {
-                firstUser = await panelClient.users.fetch(validUserIds[0]);
-            } catch (e) {
-                return socket.emit('status-update', { message: `Grup oluşturulamadı: ${validUserIds[0]} ID'li kullanıcı bulunamadı. (Bu hesapla ortak sunucunuz olmayabilir veya arkadaş olmayabilirsiniz)`, type: 'error' });
+            
+            // Kullanıcıların hepsinin erişilebilir olup olmadığını kontrol et
+            for (const userId of validUserIds) {
+                try {
+                    await panelClient.users.fetch(userId);
+                } catch (e) {
+                     return socket.emit('status-update', { message: `Grup oluşturulamadı: ${userId} ID'li kullanıcı bulunamadı. (Bu hesapla ortak sunucunuz olmayabilir veya arkadaş olmayabilirsiniz)`, type: 'error' });
+                }
             }
+
+            socket.emit('status-update', { message: 'Grup oluşturuluyor...', type: 'info' });
+            
+            const firstUser = await panelClient.users.fetch(validUserIds[0]);
             const dmChannel = await firstUser.createDM();
+            
             for (let i = 1; i < validUserIds.length; i++) {
                 try {
                     await dmChannel.addMember(validUserIds[i]);
                     socket.emit('status-update', { message: `${validUserIds[i]} ID'li kullanıcı gruba eklendi.`, type: 'info' });
+                    await new Promise(res => setTimeout(res, 500)); // Rate limit için bekle
                 } catch (e) {
                     socket.emit('status-update', { message: `${validUserIds[i]} ID'li kullanıcı eklenemedi: ${e.message}`, type: 'warning' });
                 }
-                await new Promise(res => setTimeout(res, 500));
             }
+            
             trollGroupChannel = dmChannel;
             trollGroupListener = (channel, recipient) => {
                 if (trollGroupChannel && channel.id === trollGroupChannel.id) {
@@ -568,5 +691,3 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
-
-
