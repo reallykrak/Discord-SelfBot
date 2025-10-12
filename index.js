@@ -17,7 +17,7 @@ const cloneServer = require('./commands/server-cloner.js');
 const { startSpam, stopSpam } = require('./commands/dm-spammer.js');
 const cleanDmMessages = require('./commands/dm-cleaner.js');
 const { stopRichPresence, setListeningRpc, setWatchingRpc } = require('./commands/rpc-manager.js');
-const { commands, createHelpEmbed } = require('./commands/help.js'); // YENİ HELP MODÜLÜ
+const { commands, createHelpEmbed } = require('./commands/help.js'); 
 
 const app = express();
 const server = http.createServer(app);
@@ -256,20 +256,23 @@ function loginPanelClient(token) {
         const args = msg.content.slice(prefix.length).trim().split(/ +/g);
         const command = args.shift().toLowerCase();
         
-        // --- YENİ HELP KOMUTU ---
         if (command === "help") {
             const helpEmbed = createHelpEmbed(panelClient);
-            msg.channel.send({ embeds: [helpEmbed] }).catch(console.error);
+            msg.channel.send({ embeds: [helpEmbed] }).catch(err => {
+                console.error("Help komutu hatası:", err);
+                msg.channel.send("Yardım menüsü gösterilirken bir hata oluştu. Muhtemelen çok fazla komut var.").catch();
+            });
         }
 
         if (command === "ping") {
-            msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`);
+            msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`).catch(() => msg.channel.send(`Pong! Gecikme: **${panelClient.ws.ping}ms**`));
         }
+        
         if (command === "dmall") {
-            if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.");
+            if (!msg.inGuild()) return msg.edit("Bu komut sadece sunucularda kullanılabilir.").catch();
             const text = args.join(" ");
-            if (!text) return msg.edit("Gönderilecek mesajı yazmalısın.");
-            msg.delete();
+            if (!text) return msg.edit("Gönderilecek mesajı yazmalısın.").catch();
+            msg.delete().catch();
             msg.guild.members.cache.forEach(member => {
                 if (member.id !== panelClient.user.id && !member.user.bot) {
                     member.send(text).catch(() => console.log(`${member.user.tag} adlı kullanıcıya DM gönderilemedi.`));
@@ -277,28 +280,27 @@ function loginPanelClient(token) {
             });
         }
 
-        // --- RPC KOMUTLARI ---
         if (command === "twdlisten") {
             const imageKey = args[0];
             if (!imageKey) {
-                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdlisten twd_resim`').catch(console.error);
+                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdlisten twd_resim`').catch();
             }
             setListeningRpc(panelClient, { largeImageKey: imageKey });
-            msg.edit(`✅ **Sadece Dinliyor** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
+            msg.edit(`✅ **Sadece Dinliyor** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch();
         }
         
         if (command === "twdwatch") {
             const imageKey = args[0];
             if (!imageKey) {
-                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdwatch twd_resim`').catch(console.error);
+                return msg.edit('**Hata:** Lütfen bir resim anahtarı belirtin.\n**Örnek:** `.twdwatch twd_resim`').catch();
             }
             setWatchingRpc(panelClient, { largeImageKey: imageKey });
-            msg.edit(`✅ **Zamanlayıcılı "İzliyor"** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
+            msg.edit(`✅ **Zamanlayıcılı "İzliyor"** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch();
         }
 
         if (command === "stoprpc") {
             stopRichPresence(panelClient);
-            msg.edit("✅ RPC başarıyla temizlendi.").catch(console.error);
+            msg.edit("✅ RPC başarıyla temizlendi.").catch();
         }
     });
     panelClient.login(token).catch(error => {
@@ -315,7 +317,6 @@ io.on('connection', (socket) => {
     }
     socket.emit('bot:status', { isRunning: !!botProcess });
 
-    // --- WEB PANELİ İÇİN YENİ OLAY ---
     socket.on('get-commands', () => {
         socket.emit('command-list', commands);
     });
