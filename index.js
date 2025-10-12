@@ -17,6 +17,7 @@ const cloneServer = require('./commands/server-cloner.js');
 const { startSpam, stopSpam } = require('./commands/dm-spammer.js');
 const cleanDmMessages = require('./commands/dm-cleaner.js');
 const { stopRichPresence, setListeningRpc, setWatchingRpc } = require('./commands/rpc-manager.js');
+const { commands, createHelpEmbed } = require('./commands/help.js'); // YENİ HELP MODÜLÜ
 
 const app = express();
 const server = http.createServer(app);
@@ -255,6 +256,12 @@ function loginPanelClient(token) {
         const args = msg.content.slice(prefix.length).trim().split(/ +/g);
         const command = args.shift().toLowerCase();
         
+        // --- YENİ HELP KOMUTU ---
+        if (command === "help") {
+            const helpEmbed = createHelpEmbed(panelClient);
+            msg.channel.send({ embeds: [helpEmbed] }).catch(console.error);
+        }
+
         if (command === "ping") {
             msg.edit(`Pong! Gecikme: **${panelClient.ws.ping}ms**`);
         }
@@ -270,9 +277,7 @@ function loginPanelClient(token) {
             });
         }
 
-        // --- YENİ RPC KOMUTLARI ---
-        
-        // Sadece "Spotify dinliyor" yazan RPC için komut.
+        // --- RPC KOMUTLARI ---
         if (command === "twdlisten") {
             const imageKey = args[0];
             if (!imageKey) {
@@ -282,7 +287,6 @@ function loginPanelClient(token) {
             msg.edit(`✅ **Sadece Dinliyor** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
         }
         
-        // YENİ "İZLİYOR" + ZAMANLAYICI RPC İÇİN KOMUT
         if (command === "twdwatch") {
             const imageKey = args[0];
             if (!imageKey) {
@@ -292,13 +296,10 @@ function loginPanelClient(token) {
             msg.edit(`✅ **Zamanlayıcılı "İzliyor"** tipli "The Walking Dead" RPC ayarlandı! Profiline bakabilirsin.`).catch(console.error);
         }
 
-        // TÜM RPC'LERİ DURDURMAK İÇİN KOMUT
         if (command === "stoprpc") {
             stopRichPresence(panelClient);
             msg.edit("✅ RPC başarıyla temizlendi.").catch(console.error);
         }
-        // --- RPC KOMUTLARI SONU ---
-
     });
     panelClient.login(token).catch(error => {
         console.error('[Web Panel] Giriş hatası:', error.message);
@@ -313,6 +314,11 @@ io.on('connection', (socket) => {
         socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
     }
     socket.emit('bot:status', { isRunning: !!botProcess });
+
+    // --- WEB PANELİ İÇİN YENİ OLAY ---
+    socket.on('get-commands', () => {
+        socket.emit('command-list', commands);
+    });
 
     socket.on('bot:install', () => {
         socket.emit('bot:log', 'Bağımlılıklar kuruluyor (npm install)...\n');
