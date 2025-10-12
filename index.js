@@ -14,7 +14,7 @@ const config = require('./config.js');
 
 const executeRaid = require('./commands/raid.js');
 const cloneServer = require('./commands/server-cloner.js');
-const { startSpam, stopSpam } = require('./commands:dm-spammer.js');
+const { startSpam, stopSpam } = require('./commands/dm-spammer.js');
 const cleanDmMessages = require('./commands:dm-cleaner.js');
 const { stopRichPresence, setListeningRpc, setWatchingRpc } = require('./commands/rpc-manager.js');
 const { commands, createHelpEmbed } = require('./commands/help.js'); 
@@ -568,3 +568,4 @@ const port = 3000;
 server.listen(port, () => {
     console.log(`Sunucu http://localhost:${port} adresinde başarıyla başlatıldı.`);
 });
+
