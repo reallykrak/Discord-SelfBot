@@ -25,7 +25,8 @@ async function cleanDmMessages(client, userId, socket) {
                  for (const message of userMessages.values()) {
                     await message.delete();
                     deletedCount++;
-                    await new Promise(res => setTimeout(res, 350)); // Her silme arasında bekle
+                    // Hızlandırıldı (eski: 350ms). DİKKAT: Çok düşürmek API limitlerine takılabilir.
+                    await new Promise(res => setTimeout(res, 150)); 
                 }
             }
             
@@ -44,4 +45,3 @@ async function cleanDmMessages(client, userId, socket) {
 }
 
 module.exports = cleanDmMessages;
-                      
