@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stark's Industries | Kontrol Paneli</title>
+    <title>Kontrol Paneli</title>
     <link rel="icon" type="image/png" href="images/hello.png">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
-    <audio id="background-music" src="musics/song.mp4" autoplay loop></audio>
-
     <div id="app-container">
         <nav id="sidebar">
             <div class="sidebar-header">
@@ -32,27 +30,32 @@
             </ul>
             <div class="sidebar-footer">
                 <p>Bağlantı: <span id="connection-status-text">Bağlanılıyor...</span></p>
-                <button id="volume-control-btn" class="icon-btn"><i class="fa-solid fa-volume-high"></i></button>
             </div>
         </nav>
 
-        <main id="main-content"></main>
+        <main id="main-content-wrapper">
+            <header id="mobile-header">
+                <button id="menu-toggle-btn"><i class="fa-solid fa-bars"></i></button>
+                <h2>Kontrol Paneli</h2>
+            </header>
+            <div id="main-content"></div>
+        </main>
     </div>
     
     <div id="toast-container"></div>
     
     <template id="home-template">
         <section id="home" class="content-section">
-            <div class="card welcome-card large-card">
-                <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar" style="width: 100px; height: 100px; border-radius: 50%;">
+            <div class="card large-card welcome-card">
+                <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
                 <h2 id="user-tag">Yükleniyor...</h2>
                 <p>ID: <span id="user-id">...</span></p>
-                <p>Kontrol paneline hoş geldin. Tüm özellikleri sol menüden yönetebilirsin.</p>
+                <p>Kontrol paneline hoş geldin. Tüm özellikleri menüden yönetebilirsin.</p>
             </div>
              <div class="card">
                 <h3><i class="fa-solid fa-user-secret"></i> Genel Kontroller</h3>
                 <div class="setting-row">
-                    <label>AFK Modu (Size DM atanlara otomatik mesaj gönderir)</label>
+                    <label>AFK Modu (DM'lere otomatik yanıt)</label>
                     <button id="toggle-afk" class="toggle-switch" data-status="true"><i></i></button>
                 </div>
             </div>
@@ -64,10 +67,10 @@
             <div class="card large-card">
                 <h3><i class="fa-solid fa-terminal"></i> Komut Listesi</h3>
                 <p>Aşağıdaki listeden tüm komutları ve açıklamalarını görebilir, arama çubuğunu kullanarak istediğiniz komutu kolayca bulabilirsiniz.</p>
-                <div class="command-search-container" style="margin-top: 1rem;">
+                <div class="form-group">
                     <input type="text" id="command-search-input" placeholder="Komut ara (örn: ping, avatar)...">
                 </div>
-                <div id="command-list-container" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;">
+                <div id="command-list-container">
                     <p>Komutlar yükleniyor...</p>
                 </div>
             </div>
@@ -78,11 +81,11 @@
         <section id="bot" class="content-section">
             <div class="card large-card">
                 <h3><i class="fa-solid fa-robot"></i> Genel Bot Yönetimi</h3>
-                <p>Botunuzun dosyalarını ana dizindeki <strong>'bot'</strong> klasörüne atın. Buradan botunuzu yönetebilirsiniz. <strong style="color: var(--error-color);">DİKKAT: Bu bölüm sunucunuzda doğrudan komut çalıştırır ve tehlikeli olabilir.</strong></p>
-                <div class="bot-controls-container">
+                <p>Botunuzun dosyalarını ana dizindeki <strong>'bot'</strong> klasörüne atın. Buradan botunuzu yönetebilirsiniz. <strong class="text-error">DİKKAT: Bu bölüm sunucunuzda doğrudan komut çalıştırır.</strong></p>
+                <div class="button-group">
                     <button id="bot-install-btn">NPM Install</button>
                     <button id="bot-start-btn">Botu Başlat</button>
-                    <button id="bot-stop-btn" disabled>Botu Durdur</button>
+                    <button id="bot-stop-btn" class="btn-danger" disabled>Botu Durdur</button>
                 </div>
                 <div class="console-wrapper">
                     <pre id="bot-console-output">Bot konsoluna hoş geldiniz...</pre>
@@ -100,7 +103,7 @@
             <div class="card large-card">
                 <h3><i class="fa-solid fa-satellite-dish"></i> Yayın Botları Yönetimi</h3>
                 <p>`config.js` dosyasına eklediğiniz botları buradan yönetebilirsiniz.</p>
-                <div id="streamer-bots-container" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;"></div>
+                <div id="streamer-bots-container"></div>
             </div>
         </section>
     </template>
@@ -116,27 +119,42 @@
                    <div class="tab-content">
                        <div class="tab-pane active" id="tab-status">
                            <h3>Temel Durum Ayarları</h3>
-                           <select id="status-type">
-                               <option value="online">Online</option>
-                               <option value="idle">Boşta</option>
-                               <option value="dnd">Rahatsız Etmeyin</option>
-                               <option value="invisible">Görünmez</option>
-                           </select>
-                           <select id="activity-type">
-                               <option value="PLAYING">Oynuyor</option>
-                               <option value="STREAMING">Yayınlıyor</option>
-                               <option value="LISTENING">Dinliyor</option>
-                               <option value="WATCHING">İzliyor</option>
-                               <option value="COMPETING">Yarışıyor</option>
-                           </select>
-                           <input type="text" id="activity-text" placeholder="Aktivite Metni (örn: Visual Studio Code)">
-                           <input type="text" id="streaming-url" placeholder="Yayın URL'si (Sadece Yayınlıyor için)">
+                           <div class="form-group">
+                                <label for="status-type">Durum</label>
+                                <select id="status-type">
+                                    <option value="online">Online</option>
+                                    <option value="idle">Boşta</option>
+                                    <option value="dnd">Rahatsız Etmeyin</option>
+                                    <option value="invisible">Görünmez</option>
+                                </select>
+                           </div>
+                           <div class="form-group">
+                                <label for="activity-type">Aktivite Türü</label>
+                                <select id="activity-type">
+                                    <option value="PLAYING">Oynuyor</option>
+                                    <option value="STREAMING">Yayınlıyor</option>
+                                    <option value="LISTENING">Dinliyor</option>
+                                    <option value="WATCHING">İzliyor</option>
+                                    <option value="COMPETING">Yarışıyor</option>
+                                </select>
+                           </div>
+                           <div class="form-group">
+                                <label for="activity-text">Aktivite Metni</label>
+                                <input type="text" id="activity-text" placeholder="örn: Visual Studio Code">
+                           </div>
+                            <div class="form-group">
+                                <label for="streaming-url">Yayın URL'si (Sadece "Yayınlıyor" için)</label>
+                                <input type="text" id="streaming-url" placeholder="Twitch/YouTube URL'si">
+                            </div>
                        </div>
                        <div class="tab-pane" id="tab-avatar">
                             <h3>Avatar Değiştir</h3>
-                           <input type="text" id="avatar-url" placeholder="Yeni Avatar URL'si">
+                            <div class="form-group">
+                                <label for="avatar-url">Yeni Avatar URL'si</label>
+                                <input type="text" id="avatar-url" placeholder="https://...">
+                            </div>
                        </div>
-                       <button id="change-status-btn" style="margin-top: 1.5rem;">Değişiklikleri Kaydet</button>
+                       <button id="change-status-btn">Değişiklikleri Kaydet</button>
                    </div>
                </div>
             </div>
@@ -153,14 +171,26 @@
                    </div>
                    <div class="tab-content">
                        <div class="tab-pane active" id="tab-spammer">
-                            <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
-                            <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
-                            <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
-                            <input type="number" id="spammer-delay" placeholder="Mesaj Arası Gecikme (ms)" value="1500">
+                            <div class="form-group">
+                                <input type="password" id="spammer-token" placeholder="Mesajı Gönderecek Hesabın Token'ı">
+                            </div>
+                            <div class="form-group">
+                                <input type="text" id="spammer-user-id" placeholder="Mesaj Gönderilecek Kişinin ID'si">
+                            </div>
+                            <div class="form-group">
+                                <textarea id="spammer-message" placeholder="Tekrarlanacak Mesaj"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="spammer-delay">Gecikme (ms)</label>
+                                <input type="number" id="spammer-delay" placeholder="Mesaj Arası Gecikme (ms)" value="1500">
+                            </div>
                             <button id="spam-btn" class="toggle-btn" data-status="false">Spam'ı Başlat</button>
                        </div>
                        <div class="tab-pane" id="tab-cleaner">
-                            <input type="text" id="clean-dm-user-id" placeholder="Mesajları Silinecek Kişinin ID'si">
+                            <div class="form-group">
+                                <label for="clean-dm-user-id">Kullanıcı ID</label>
+                                <input type="text" id="clean-dm-user-id" placeholder="Mesajları Silinecek Kişinin ID'si">
+                            </div>
                             <button id="start-dm-clean-btn">Temizliği Başlat</button>
                        </div>
                    </div>
@@ -180,8 +210,11 @@
                    </div>
                    <div class="tab-content">
                        <div class="tab-pane active" id="tab-voice">
-                           <input type="text" id="voice-channel-id" placeholder="Katılınacak Ses Kanalı ID'si">
-                           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
+                           <div class="form-group">
+                                <label for="voice-channel-id">Ses Kanalı ID</label>
+                                <input type="text" id="voice-channel-id" placeholder="Katılınacak Ses Kanalı ID'si">
+                           </div>
+                           <div class="button-grid">
                                <button id="voice-join-btn">Katıl</button>
                                <button id="voice-leave-btn">Ayrıl</button>
                                <button id="voice-play-btn">Müzik Çal</button>
@@ -191,14 +224,25 @@
                            </div>
                        </div>
                        <div class="tab-pane" id="tab-ghost">
-                           <input type="text" id="ghost-ping-channel-id" placeholder="Kanal ID'si">
-                           <input type="text" id="ghost-ping-user-id" placeholder="Kullanıcı ID'si">
-                           <button id="ghost-ping-btn" style="margin-top: 1rem;">Gönder</button>
+                            <div class="form-group">
+                                <label for="ghost-ping-channel-id">Kanal ID</label>
+                                <input type="text" id="ghost-ping-channel-id" placeholder="Kanal ID'si">
+                            </div>
+                            <div class="form-group">
+                                <label for="ghost-ping-user-id">Kullanıcı ID</label>
+                                <input type="text" id="ghost-ping-user-id" placeholder="Kullanıcı ID'si">
+                            </div>
+                           <button id="ghost-ping-btn">Gönder</button>
                        </div>
                        <div class="tab-pane" id="tab-typing">
-                           <input type="text" id="typing-channel-id" placeholder="Kanal ID'si">
-                           <button id="start-typing-btn" style="margin-top: 1rem;">Başlat</button>
-                           <button id="stop-typing-btn">Durdur</button>
+                            <div class="form-group">
+                                <label for="typing-channel-id">Kanal ID</label>
+                                <input type="text" id="typing-channel-id" placeholder="Kanal ID'si">
+                            </div>
+                            <div class="button-group">
+                                <button id="start-typing-btn">Başlat</button>
+                                <button id="stop-typing-btn">Durdur</button>
+                            </div>
                        </div>
                    </div>
                </div>
@@ -210,11 +254,20 @@
         <section id="raid" class="content-section">
             <div class="card large-card">
                 <h3><i class="fa-solid fa-biohazard"></i> Sunucu Raid</h3>
-                <p>Bu aracı dikkatli kullanın. Belirtilen sunucudaki tüm kanalları, rolleri, emojileri siler, yeni kanallar ve roller oluşturur, tüm üyelere özel mesaj gönderir ve tüm üyeleri yasaklar. Bu işlem geri alınamaz.</p>
-                <input type="text" id="raid-server-id" placeholder="Hedef Sunucu ID'si">
-                <input type="text" id="raid-name" placeholder="Oluşturulacak Kanal/Rol Adı (örn: Raidlendi)" value="Raiding">
-                <input type="number" id="raid-amount" placeholder="Oluşturulacak Kanal/Rol Sayısı (örn: 50)" value="50">
-                <button id="start-raid-btn" class="toggle-btn" style="border-color: var(--error-color);">Raid'i Başlat</button>
+                <p>Bu aracı dikkatli kullanın. Belirtilen sunucudaki tüm kanalları, rolleri, emojileri siler, yeni kanallar ve roller oluşturur, tüm üyelere özel mesaj gönderir ve tüm üyeleri yasaklar. <strong class="text-error">Bu işlem geri alınamaz.</strong></p>
+                <div class="form-group">
+                    <label for="raid-server-id">Hedef Sunucu ID</label>
+                    <input type="text" id="raid-server-id" placeholder="Hedef Sunucu ID'si">
+                </div>
+                <div class="form-group">
+                    <label for="raid-name">Kanal/Rol Adı</label>
+                    <input type="text" id="raid-name" placeholder="Oluşturulacak Kanal/Rol Adı (örn: Raidlendi)" value="Raiding">
+                </div>
+                <div class="form-group">
+                    <label for="raid-amount">Kanal/Rol Sayısı</label>
+                    <input type="number" id="raid-amount" placeholder="Oluşturulacak Kanal/Rol Sayısı (örn: 50)" value="50">
+                </div>
+                <button id="start-raid-btn" class="btn-danger">Raid'i Başlat</button>
             </div>
         </section>
     </template>
@@ -224,8 +277,14 @@
             <div class="card large-card">
                 <h3><i class="fa-solid fa-copy"></i> Sunucu Kopyalama</h3>
                 <p>Belirtilen sunucunun tüm yapısını (roller, kanallar, izinler, emojiler) yeni bir sunucuya kopyalar. Bu işlem sunucunun büyüklüğüne göre uzun sürebilir ve API limitlerini zorlayabilir.</p>
-                <input type="text" id="source-guild-id" placeholder="Kopyalanacak Sunucu ID'si">
-                <input type="text" id="new-guild-name" placeholder="Yeni Sunucunun Adı">
+                <div class="form-group">
+                    <label for="source-guild-id">Kopyalanacak Sunucu ID</label>
+                    <input type="text" id="source-guild-id" placeholder="Kopyalanacak Sunucu ID'si">
+                </div>
+                <div class="form-group">
+                    <label for="new-guild-name">Yeni Sunucunun Adı</label>
+                    <input type="text" id="new-guild-name" placeholder="Yeni Sunucunun Adı">
+                </div>
                 <button id="start-copy-btn">Kopyalamayı Başlat</button>
             </div>
         </section>
@@ -236,12 +295,21 @@
             <div class="card large-card">
                 <h3><i class="fa-solid fa-user-group"></i> Troll Grup</h3>
                 <p>Belirttiğiniz kişileri bir gruba ekler. Gruptan çıkan olursa anında geri eklenir. Durdurmak için "Durdur" butonuna basın.</p>
-                <input type="text" id="troll-user-1" placeholder="1. Kişi ID'si">
-                <input type="text" id="troll-user-2" placeholder="2. Kişi ID'si">
-                <input type="text" id="troll-user-3" placeholder="3. Kişi ID'si (Opsiyonel)">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                <div class="form-group">
+                    <label for="troll-user-1">1. Kişi ID</label>
+                    <input type="text" id="troll-user-1" placeholder="1. Kişi ID'si">
+                </div>
+                 <div class="form-group">
+                    <label for="troll-user-2">2. Kişi ID</label>
+                    <input type="text" id="troll-user-2" placeholder="2. Kişi ID'si">
+                </div>
+                 <div class="form-group">
+                    <label for="troll-user-3">3. Kişi ID (Opsiyonel)</label>
+                    <input type="text" id="troll-user-3" placeholder="3. Kişi ID'si (Opsiyonel)">
+                </div>
+                <div class="button-group">
                     <button id="start-troll-group-btn">Başlat</button>
-                    <button id="stop-troll-group-btn" disabled>Durdur</button>
+                    <button id="stop-troll-group-btn" class="btn-danger" disabled>Durdur</button>
                 </div>
             </div>
         </section>
@@ -251,7 +319,10 @@
         <section id="account" class="content-section">
             <div class="card">
                 <h3><i class="fa-solid fa-user-gear"></i> Hesap Yönetimi</h3>
-                <input type="password" id="new-token" placeholder="Yeni Discord Token">
+                <div class="form-group">
+                    <label for="new-token">Yeni Discord Token</label>
+                    <input type="password" id="new-token" placeholder="Yeni Discord Token">
+                </div>
                 <button id="switch-account-btn">Hesap Değiştir</button>
             </div>
         </section>
@@ -260,5 +331,4 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-    </html>
-    
+</html>
