@@ -5,9 +5,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastContainer = document.getElementById('toast-container');
     const connectionStatusText = document.getElementById('connection-status-text');
     const navLinks = document.querySelectorAll('.nav-link');
-    const music = document.getElementById('background-music');
-    const volumeBtn = document.getElementById('volume-control-btn');
     
+    // --- YENİ EKLENEN MOBİL MENÜ KODLARI ---
+    const menuToggleBtn = document.getElementById('menu-toggle-btn');
+    const sidebar = document.getElementById('sidebar');
+    const appContainer = document.getElementById('app-container');
+    const mainContentWrapper = document.getElementById('main-content-wrapper');
+
+    if (menuToggleBtn) {
+        menuToggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            appContainer.classList.toggle('menu-open');
+        });
+    }
+
+    // Mobilde bir linke tıklayınca menüyü kapat
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 992 && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                appContainer.classList.remove('menu-open');
+            }
+        });
+    });
+
+    // Mobilde içerik alanına tıklayınca menüyü kapat
+    if (mainContentWrapper) {
+         mainContentWrapper.addEventListener('click', (e) => {
+            if (window.innerWidth <= 992 && sidebar.classList.contains('open') && !e.target.closest('#sidebar')) {
+                sidebar.classList.remove('open');
+                appContainer.classList.remove('menu-open');
+            }
+         });
+    }
+    // --- MOBİL MENÜ KODLARI BİTİŞİ ---
+
     let botInfo = {};
     let allCommands = []; // Tüm komutları saklamak için
     
@@ -24,14 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
         "troll-group": document.getElementById('troll-group-template')?.innerHTML,
         account: document.getElementById('account-template')?.innerHTML,
     };
-
-    if (volumeBtn && music) {
-        volumeBtn.addEventListener('click', () => {
-            music.muted = !music.muted;
-            const icon = volumeBtn.querySelector('i');
-            icon.className = music.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
-        });
-    }
+    
+    // Arka plan müziği kodları kasmaya neden olduğu için kaldırıldı.
 
     const showToast = (message, type = 'info') => {
         const toast = document.createElement('div');
@@ -48,8 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!button) return;
         button.dataset.status = isActive ? 'true' : 'false';
         button.classList.toggle('active', isActive);
+
+        // toggle-switch class'ı olmayan butonların metnini değiştir
         if (!button.classList.contains('toggle-switch')) {
              button.textContent = isActive ? activeText : inactiveText;
+             // Yeni tasarıma uygun class ekleme/çıkarma
+             button.classList.toggle('btn-danger', isActive); // Durdur butonu kırmızı olsun
+             button.classList.toggle('btn-success', !isActive); // Başlat butonu yeşil olsun (Opsiyonel, duruma göre ayarlanabilir)
         }
     };
     
@@ -77,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!templates[page] || !mainContent) {
             console.error(`'${page}' için template veya ana içerik alanı bulunamadı.`);
-            mainContent.innerHTML = `<div class="card"><h3 style="color: var(--error-color);">Sayfa Yüklenemedi</h3><p>'${page}' adlı sayfanın içeriği bulunamadı. Lütfen script.js dosyasını kontrol edin.</p></div>`;
+            mainContent.innerHTML = `<div class="card"><h3 class="text-error">Sayfa Yüklenemedi</h3><p>'${page}' adlı sayfanın içeriği bulunamadı. Lütfen script.js dosyasını kontrol edin.</p></div>`;
             return;
         }
         
@@ -88,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (page === 'streamer') {
             socket.emit('get-streamer-bots');
         }
-        // Komutlar sayfasına gelindiğinde komutları sunucudan iste
         if (page === 'commands') {
             socket.emit('get-commands');
         }
@@ -98,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
+    // Tüm event listener'lar ID'ler üzerinden çalıştığı için sorunsuz çalışmaya devam eder.
     const addEventListenersForPage = (page) => {
         switch (page) {
             case 'home':
@@ -131,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('voice-leave-btn')?.addEventListener('click', () => handleVoiceControl('leave'));
                 document.getElementById('voice-play-btn')?.addEventListener('click', () => handleVoiceControl('play'));
                 document.getElementById('voice-stop-btn')?.addEventListener('click', () => handleVoiceControl('stop'));
+                // Diğer ses butonları (mute, deafen) için ID'ler HTML'de olmadığı için listener eklenmedi.
                 break;
             case 'raid':
                 document.getElementById('start-raid-btn')?.addEventListener('click', handleRaidStart);
@@ -212,10 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const commandDiv = document.createElement('div');
             commandDiv.className = 'command-item';
             commandDiv.innerHTML = `
-                <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px;">
-                    <strong style="color: var(--primary-color);">.${cmd.name}</strong>
-                    <p style="color: var(--text-muted-color); margin-top: 0.5rem;">${cmd.desc}</p>
-                </div>
+                <strong>.${cmd.name}</strong>
+                <p>${cmd.desc}</p>
             `;
             container.appendChild(commandDiv);
         });
@@ -266,26 +296,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('streamer-bots-container');
         if (!container) return;
         container.innerHTML = bots.length > 0 ? '' : '<p>Config dosyasında yönetilecek bot bulunamadı.</p>';
+        
         bots.forEach(bot => {
             const isOnline = bot.status === 'online';
             const statusColor = isOnline ? 'var(--success-color)' : 'var(--text-muted-color)';
-            const botCardHTML = `
-                <div class="card" style="flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
-                    <div style="display: flex; align-items: center; gap: 1rem; min-width: 250px; flex-grow: 1;">
-                        <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 40px; height: 40px; border-radius: 50%;">
-                        <div>
-                            <strong style="white-space: nowrap;">${bot.tag || 'Çevrimdışı'}</strong>
-                            <p style="font-size: 0.8em; color: ${statusColor};">${bot.statusText || 'Durduruldu'}</p>
-                        </div>
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 150px;">
-                        <button style="border-color: var(--success-color);" data-action="start-stream" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Yayın Başlat</button>
-                        <button style="border-color: var(--primary-color);" data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
-                        <button style="border-color: var(--error-color);" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
+            
+            const botCard = document.createElement('div');
+            botCard.className = 'streamer-bot-card';
+            
+            botCard.innerHTML = `
+                <div class="streamer-bot-info">
+                    <img src="${bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}">
+                    <div>
+                        <strong>${bot.tag || 'Çevrimdışı'}</strong>
+                        <p style="color: ${statusColor};">${bot.statusText || 'Durduruldu'}</p>
                     </div>
                 </div>
+                <div class="streamer-bot-actions">
+                    <button class="btn-success" data-action="start-stream" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Yayın Başlat</button>
+                    <button data-action="start-camera" data-token="${bot.token}" ${isOnline ? 'disabled' : ''}>Kamera Aç</button>
+                    <button class="btn-danger" data-action="stop-stream" data-token="${bot.token}" ${!isOnline ? 'disabled' : ''}>Durdur</button>
+                </div>
             `;
-            container.innerHTML += botCardHTML;
+            container.appendChild(botCard);
         });
     };
 
@@ -373,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('start-troll-group', { userIds });
     }
 
+    // Başlangıç sayfası
     switchPage(window.location.hash);
     window.addEventListener('hashchange', () => switchPage(window.location.hash));
 });
-        
