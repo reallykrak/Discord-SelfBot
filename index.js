@@ -265,11 +265,15 @@ function loginPanelClient(token) {
             const helpEmbed = createHelpEmbed(panelClient, page);
             
             try {
-                // HATA ÇÖZÜMÜ: Mesaj içeriği olarak boş bir karakter gönderiyoruz.
+                // HATA ÇÖZÜMÜ: Komut mesajını sil ve embed'i yeni mesaj olarak gönder
+                await msg.delete().catch(); 
+                
                 if (typeof helpEmbed === 'string') {
-                    await msg.edit(helpEmbed);
+                    // Hata mesajıysa (örn: geçersiz sayfa)
+                    await msg.channel.send(helpEmbed); 
                 } else {
-                    await msg.edit({ content: ' ', embeds: [helpEmbed] });
+                    // Başarılı embed ise, content: ' ' ile gönder
+                    await msg.channel.send({ content: ' ', embeds: [helpEmbed] });
                 }
             } catch (err) {
                 console.error("Help komutu hatası:", err);
@@ -600,7 +604,9 @@ io.on('connection', (socket) => {
         cloneServer(panelClient, sourceGuildId, newServerName, socket);
     });
 
-    // HATA ÇÖZÜMÜ: Troll grup oluşturma mantığı yeniden yazıldı.
+    // ========================================================================
+    // HATA ÇÖZÜMÜ: Troll grup oluşturma mantığı yeniden yazıldı. (10.11.2025)
+    // ========================================================================
     socket.on('start-troll-group', async (data) => {
         if (trollGroupChannel) {
             return socket.emit('status-update', { message: 'Zaten aktif bir troll grup var.', type: 'warning' });
@@ -623,20 +629,16 @@ io.on('connection', (socket) => {
 
             socket.emit('status-update', { message: 'Grup oluşturuluyor...', type: 'info' });
             
-            const firstUser = await panelClient.users.fetch(validUserIds[0]);
-            const dmChannel = await firstUser.createDM();
-            
-            for (let i = 1; i < validUserIds.length; i++) {
-                try {
-                    await dmChannel.addMember(validUserIds[i]);
-                    socket.emit('status-update', { message: `${validUserIds[i]} ID'li kullanıcı gruba eklendi.`, type: 'info' });
-                    await new Promise(res => setTimeout(res, 500)); // Rate limit için bekle
-                } catch (e) {
-                    socket.emit('status-update', { message: `${validUserIds[i]} ID'li kullanıcı eklenemedi: ${e.message}`, type: 'warning' });
-                }
+            // Hata Çözümü: createDM() + addMember() yerine createGroupDM() kullanarak tüm üyelerle grup oluştur.
+            // Bu, 'dmChannel.addMember is not a function' hatasını çözer.
+            const groupDM = await panelClient.users.createGroupDM(validUserIds);
+                
+            if (!groupDM) {
+                throw new Error("Grup oluşturulamadı. API'den bir yanıt alınamadı.");
             }
+
+            trollGroupChannel = groupDM;
             
-            trollGroupChannel = dmChannel;
             trollGroupListener = (channel, recipient) => {
                 if (trollGroupChannel && channel.id === trollGroupChannel.id) {
                     console.log(`[Troll Group] ${recipient.user.tag} gruptan ayrıldı. Geri ekleniyor...`);
@@ -645,6 +647,7 @@ io.on('connection', (socket) => {
                 }
             };
             panelClient.on('channelRecipientRemove', trollGroupListener);
+            
             socket.emit('troll-group-status', { isActive: true });
             socket.emit('status-update', { message: 'Troll grup başarıyla oluşturuldu ve aktif!', type: 'success' });
         } catch (error) {
@@ -652,6 +655,10 @@ io.on('connection', (socket) => {
             socket.emit('status-update', { message: `Grup oluşturulamadı: ${error.message}`, type: 'error' });
         }
     });
+    // ========================================================================
+    // HATA ÇÖZÜMÜ BİTİŞİ
+    // ========================================================================
+
 
     socket.on('stop-troll-group', () => {
         if (trollGroupListener) {
