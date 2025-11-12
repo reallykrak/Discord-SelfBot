@@ -3,21 +3,21 @@
 
 /*
   TEMA VE RENK AYARLARI
-  Sade beyaz ve profesyonel mavi tonları kullanıldı.
+  İstek üzerine koyu tema ve mavi tonları.
 */
 :root {
-    --bg-color: #f4f7f6; /* Hafif kırık beyaz */
-    --surface-color: #ffffff; /* Kartların rengi (tam beyaz) */
-    --primary-color: #007bff; /* Profesyonel mavi */
-    --primary-hover-color: #0056b3;
-    --text-color: #212529; /* Siyaha yakın koyu gri */
-    --text-muted-color: #6c757d; /* Normal gri */
-    --border-color: #e0e0e0; /* Açık gri border */
+    --bg-color: #1e1f22; /* Koyu arka plan */
+    --surface-color: #2b2d31; /* Kartların rengi */
+    --primary-color: #4a90e2; /* Vurgu rengi (mavi) */
+    --primary-hover-color: #3a7bc8;
+    --text-color: #f0f0f0; /* Açık metin */
+    --text-muted-color: #949aa4; /* Gri metin */
+    --border-color: #35363b; /* Koyu border */
     --success-color: #28a745;
     --error-color: #dc3545;
     --warning-color: #ffc107;
     --font-family: 'Inter', sans-serif;
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     --transition-speed: 0.2s;
     
     --sidebar-width: 250px;
@@ -42,6 +42,12 @@ body {
     display: flex;
     height: 100vh;
     overflow: hidden;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 1rem 0;
 }
 
 #app-container {
@@ -81,6 +87,7 @@ body {
 .sidebar-header h1 {
     font-size: 1.25rem;
     font-weight: 600;
+    color: var(--text-color);
 }
 
 #nav-menu {
@@ -103,7 +110,7 @@ body {
     border: 1px solid transparent;
 }
 .nav-item a:hover {
-    background-color: #f0f0f0;
+    background-color: var(--border-color);
     color: var(--text-color);
 }
 .nav-item a.active {
@@ -146,6 +153,7 @@ body {
     margin-left: 1rem;
     font-size: 1.1rem;
     font-weight: 600;
+    color: var(--text-color);
 }
 #menu-toggle-btn {
     background: none;
@@ -168,6 +176,64 @@ body {
     gap: 1.5rem;
 }
 
+/* =================================== */
+/* YENİ ANA SAYFA DASHBOARD STİLLERİ   */
+/* =================================== */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    /* Bu grid'in ana content-section'da tam satır kaplamasını sağla */
+    grid-column: 1 / -1; 
+}
+
+.stat-card {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: var(--shadow);
+}
+.stat-card i {
+    font-size: 1.75rem;
+    color: var(--primary-color);
+    padding: 10px;
+    background-color: rgba(74, 144, 226, 0.1);
+    border-radius: 8px;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+.stat-info span {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.stat-info h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-color);
+    /* Kart h3'leri için alttaki çizgiyi ve boşlukları sıfırla */
+    border-bottom: none; 
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+/* =================================== */
+/* DASHBOARD STİLLERİ BİTİŞİ        */
+/* =================================== */
+
+
 /* KARTLAR (CARD)
   Tüm içerikler bu kartların içinde.
 */
@@ -186,17 +252,6 @@ body {
 }
 @media (min-width: 1024px) {
     .card.large-card { grid-column: span 2; }
-}
-
-.welcome-card {
-    align-items: center;
-    text-align: center;
-}
-.welcome-card img {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    border: 2px solid var(--border-color);
 }
 
 .card h3 {
@@ -243,7 +298,11 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+}
+input[type="color"] {
+    padding: 0.25rem 0.5rem;
+    min-height: 48px;
 }
 textarea {
     min-height: 100px;
@@ -354,6 +413,7 @@ button.btn-success:hover:not(:disabled) { background-color: #1e7e34; }
     display: flex;
     border-bottom: 2px solid var(--border-color);
     margin-bottom: 1.5rem;
+    flex-wrap: wrap; /* Mobilde sığmazsa alt satıra geç */
 }
 .tab-btn {
     border: none;
@@ -427,6 +487,7 @@ button.btn-success:hover:not(:disabled) { background-color: #1e7e34; }
 }
 .streamer-bot-info strong {
     white-space: nowrap;
+    color: var(--text-color);
 }
 .streamer-bot-info p {
     font-size: 0.85em;
@@ -457,6 +518,7 @@ button.btn-success:hover:not(:disabled) { background-color: #1e7e34; }
     border: 1px solid var(--border-color);
     padding: 1rem;
     border-radius: 8px;
+    background: var(--bg-color);
 }
 .command-item strong {
     color: var(--primary-color);
@@ -503,6 +565,14 @@ button.btn-success:hover:not(:disabled) { background-color: #1e7e34; }
     .card.large-card {
         grid-column: span 1;
     }
+    
+    .dashboard-grid {
+        grid-template-columns: 1fr; /* Mobilde istatistik kartları alt alta */
+    }
+    
+    .button-grid {
+        grid-template-columns: 1fr; /* Buton gridleri alt alta */
+    }
 
     /* Mobilde tıklayınca menüyü kapatmak için overlay */
     #app-container.menu-open #main-content-wrapper::before {
@@ -516,4 +586,3 @@ button.btn-success:hover:not(:disabled) { background-color: #1e7e34; }
         z-index: 999;
     }
 }
-
