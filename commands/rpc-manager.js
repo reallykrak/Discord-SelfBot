@@ -16,7 +16,7 @@ function stopRichPresence(client) {
 /**
  * ESKİ RPC: Sadece "Spotify dinliyor" olarak görünen aktiviteyi ayarlar. (.twdlisten komutu için)
  * @param {Client} client - Discord client nesnesi.
- * @param {object} options - RPC ayarları.
+ * @param {object} options - RPC ayarları (largeImageKey, largeImageText, smallImageKey, smallImageText, details, state, buttons)
  */
 function setListeningRpc(client, options) {
     if (!client || !client.user) {
@@ -34,21 +34,26 @@ function setListeningRpc(client, options) {
     const activity = {
         name: 'Spotify',
         type: 'LISTENING',
-        details: "The Walking Dead",
-        state: null,
+        details: options.details || "The Walking Dead", // Değiştirilebilir
+        state: options.state || null,                   // Değiştirilebilir
         timestamps: {
             start: startTime,
         },
         assets: {
             large_image: options.largeImageKey,
-            large_text: "The Ones Who Live", 
+            large_text: options.largeImageText || "The Ones Who Live", 
+            small_image: options.smallImageKey || undefined,
+            small_text: options.smallImageText || undefined,
         },
+        buttons: [
+            ...(options.buttons || []) // [{ label: "İzle", url: "..." }]
+        ]
     };
 
     try {
         // setActivity, tek bir aktivite ayarlar.
         client.user.setActivity(activity);
-        console.log(`[RPC] Zamanlayıcılı 'The Walking Dead' Dinliyor RPC ayarlandı.`);
+        console.log(`[RPC] Gelişmiş 'Dinliyor' RPC ayarlandı.`);
     } catch (error) {
         console.error('[RPC] Dinleme RPC ayarlanırken hata oluştu:', error);
     }
@@ -57,7 +62,7 @@ function setListeningRpc(client, options) {
 /**
  * YENİ RPC: "The Walking Dead İzliyor" ve altında Spotify zamanlayıcısı gösterir. (.twdwatch komutu için)
  * @param {Client} client - Discord client nesnesi.
- * @param {object} options - RPC ayarları.
+ * @param {object} options - RPC ayarları (largeImageKey, largeImageText, smallImageKey, smallImageText, details, state, buttons)
  */
 function setWatchingRpc(client, options) {
     if (!client || !client.user) {
@@ -72,18 +77,22 @@ function setWatchingRpc(client, options) {
     const activities = [
         {
             // 1. Aktivite: Görünen ana aktivite
-            name: "The Walking Dead",         // Bu, en üstte "The Walking Dead izliyor" yazısını oluşturur.
-            type: 'WATCHING',                 // Aktivite tipi: İzliyor
-            details: "The Walking Dead",      // Bu, büyük beyaz ana metin olacak.
-            state: null,                      // "Bölüm", "Sezon" gibi alt metinleri kaldırdık.
+            name: "The Walking Dead",
+            type: 'WATCHING',
+            details: options.details || "The Walking Dead",
+            state: options.state || null,
             assets: {
                 large_image: options.largeImageKey,
-                large_text: "Final Sezonu",   // Resmin üzerine gelince çıkan yazı
+                large_text: options.largeImageText || "Final Sezonu",
+                small_image: options.smallImageKey || undefined,
+                small_text: options.smallImageText || undefined,
             },
+            buttons: [
+                ...(options.buttons || []) // [{ label: "İzle", url: "..." }]
+            ]
         },
         {
             // 2. Aktivite: Sadece Spotify zamanlayıcı çubuğunu eklemek için.
-            // Bu aktivitenin diğer detayları genellikle görünmez.
             name: 'Spotify',
             type: 'LISTENING',
             timestamps: {
@@ -95,7 +104,7 @@ function setWatchingRpc(client, options) {
     try {
         // setPresence metodu ile birden fazla aktiviteyi aynı anda ayarlıyoruz.
         client.user.setPresence({ activities: activities });
-        console.log(`[RPC] Zamanlayıcılı 'The Walking Dead' İzliyor RPC ayarlandı.`);
+        console.log(`[RPC] Gelişmiş ve Zamanlayıcılı 'İzliyor' RPC ayarlandı.`);
     } catch (error)
         {
         console.error('[RPC] İzleme RPC ayarlanırken hata oluştu:', error);
