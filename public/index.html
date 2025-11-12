@@ -23,6 +23,7 @@
                 <li class="nav-item"><a href="#profile" class="nav-link"><i class="fa-solid fa-id-card"></i> <span>Profil Ayarları</span></a></li>
                 <li class="nav-item"><a href="#messaging" class="nav-link"><i class="fa-solid fa-rocket"></i> <span>Mesajlaşma</span></a></li>
                 <li class="nav-item"><a href="#tools" class="nav-link"><i class="fa-solid fa-toolbox"></i> <span>Araçlar</span></a></li>
+                <li class="nav-item"><a href="#webhook" class="nav-link"><i class="fa-solid fa-bolt"></i> <span>Webhook</span></a></li>
                 <li class="nav-item"><a href="#raid" class="nav-link"><i class="fa-solid fa-biohazard"></i> <span>Raid</span></a></li>
                 <li class="nav-item"><a href="#server-copy" class="nav-link"><i class="fa-solid fa-copy"></i> <span>Sunucu Kopyala</span></a></li>
                 <li class="nav-item"><a href="#troll-group" class="nav-link"><i class="fa-solid fa-user-group"></i> <span>Troll Grup</span></a></li>
@@ -46,14 +47,42 @@
     
     <template id="home-template">
         <section id="home" class="content-section">
-            <div class="card large-card welcome-card">
-                <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User Avatar">
-                <h2 id="user-tag">Yükleniyor...</h2>
-                <p>ID: <span id="user-id">...</span></p>
-                <p>Kontrol paneline hoş geldin. Tüm özellikleri menüden yönetebilirsin.</p>
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <i class="fa-solid fa-user"></i>
+                    <div class="stat-info">
+                        <span>USERNAME</span>
+                        <h3 id="dash-user-tag">Yükleniyor...</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fa-solid fa-server"></i>
+                    <div class="stat-info">
+                        <span>SERVERS</span>
+                        <h3 id="dash-servers">...</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fa-solid fa-signal"></i>
+                    <div class="stat-info">
+                        <span>PING</span>
+                        <h3 id="dash-ping">...ms</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fa-solid fa-clock"></i>
+                    <div class="stat-info">
+                        <span>UPTIME</span>
+                        <h3 id="dash-uptime">...</h3>
+                    </div>
+                </div>
             </div>
-             <div class="card">
-                <h3><i class="fa-solid fa-user-secret"></i> Genel Kontroller</h3>
+
+            <div class="card large-card">
+                <h3><i class="fa-solid fa-gears"></i> Genel Kontroller</h3>
+                <div class="button-group">
+                     <button id="kill-selfbot-btn" class="btn-danger">Paneli Durdur (Kill)</button>
+                </div>
                 <div class="setting-row">
                     <label>AFK Modu (DM'lere otomatik yanıt)</label>
                     <button id="toggle-afk" class="toggle-switch" data-status="true"><i></i></button>
@@ -113,7 +142,7 @@
             <div class="card large-card">
                  <div class="tab-container">
                    <div class="tab-nav">
-                       <button class="tab-btn active" data-tab="status"><i class="fa-solid fa-rss"></i> Durum Değiştir</button>
+                       <button class="tab-btn active" data-tab="status"><i class="fa-solid fa-rss"></i> Custom Presence (RPC)</button>
                        <button class="tab-btn" data-tab="avatar"><i class="fa-solid fa-image-portrait"></i> Avatar Değiştir</button>
                    </div>
                    <div class="tab-content">
@@ -139,13 +168,63 @@
                                 </select>
                            </div>
                            <div class="form-group">
-                                <label for="activity-text">Aktivite Metni</label>
+                                <label for="activity-text">Aktivite Metni (Name)</label>
                                 <input type="text" id="activity-text" placeholder="örn: Visual Studio Code">
                            </div>
                             <div class="form-group">
                                 <label for="streaming-url">Yayın URL'si (Sadece "Yayınlıyor" için)</label>
                                 <input type="text" id="streaming-url" placeholder="Twitch/YouTube URL'si">
                             </div>
+
+                            <hr>
+                            <h3>Gelişmiş RPC Ayarları</h3>
+                            <div class="form-group">
+                                <label for="rpc-details">Details (RPC Satır 1)</label>
+                                <input type="text" id="rpc-details" placeholder="örn: Working on a project">
+                            </div>
+                            <div class="form-group">
+                                <label for="rpc-state">State (RPC Satır 2)</label>
+                                <input type="text" id="rpc-state" placeholder="örn: File: index.js">
+                            </div>
+                            <div class="button-grid">
+                                <div class="form-group">
+                                    <label for="rpc-large-image-key">Large Image Key</label>
+                                    <input type="text" id="rpc-large-image-key" placeholder="Resim Adı (Developer Portal)">
+                                </div>
+                                <div class="form-group">
+                                    <label for="rpc-large-image-text">Large Image Text</label>
+                                    <input type="text" id="rpc-large-image-text" placeholder="Resim Üstü Yazı">
+                                </div>
+                                <div class="form-group">
+                                    <label for="rpc-small-image-key">Small Image Key</label>
+                                    <input type="text" id="rpc-small-image-key" placeholder="Resim Adı (Developer Portal)">
+                                </div>
+                                <div class="form-group">
+                                    <label for="rpc-small-image-text">Small Image Text</label>
+                                    <input type="text" id="rpc-small-image-text" placeholder="Resim Üstü Yazı">
+                                </div>
+                            </div>
+                            <hr>
+                            <h3>RPC Butonları</h3>
+                            <div class="button-grid">
+                                <div class="form-group">
+                                    <label for="rpc-btn1-label">Buton 1 Yazısı</label>
+                                    <input type="text" id="rpc-btn1-label" placeholder="örn: GitHub">
+                                </div>
+                                <div class="form-group">
+                                    <label for="rpc-btn1-url">Buton 1 URL</label>
+                                    <input type="text" id="rpc-btn1-url" placeholder="https://...">
+                                </div>
+                                <div class="form-group">
+                                    <label for="rpc-btn2-label">Buton 2 Yazısı</label>
+                                    <input type="text" id="rpc-btn2-label" placeholder="örn: Website">
+                                </div>
+                                <div class="form-group">
+                                    <label for="rpc-btn2-url">Buton 2 URL</label>
+                                    <input type="text" id="rpc-btn2-url" placeholder="https://...">
+                                </div>
+                            </div>
+
                        </div>
                        <div class="tab-pane" id="tab-avatar">
                             <h3>Avatar Değiştir</h3>
@@ -324,6 +403,75 @@
                     <input type="password" id="new-token" placeholder="Yeni Discord Token">
                 </div>
                 <button id="switch-account-btn">Hesap Değiştir</button>
+            </div>
+        </section>
+    </template>
+
+    <template id="webhook-template">
+        <section id="webhook" class="content-section">
+            <div class="card">
+                <h3><i class="fa-solid fa-bolt"></i> Webhook Gönderici</h3>
+                 <div class="form-group">
+                    <label for="webhook-url">Webhook URL</label>
+                    <input type="password" id="webhook-url" placeholder="https://discord.com/api/webhooks/...">
+                </div>
+                <div class="form-group">
+                    <label for="webhook-username">Bot Adı (Opsiyonel)</label>
+                    <input type="text" id="webhook-username" placeholder="Webhook'un Adı">
+                </div>
+                 <div class="form-group">
+                    <label for="webhook-avatar">Bot Avatar URL (Opsiyonel)</label>
+                    <input type="text" id="webhook-avatar" placeholder="https://...">
+                </div>
+                 <div class="form-group">
+                    <label for="webhook-content">Mesaj İçeriği</label>
+                    <textarea id="webhook-content" placeholder="Normal mesaj içeriği..."></textarea>
+                </div>
+            </div>
+            <div class="card large-card">
+                 <h3><i class="fa-solid fa-puzzle-piece"></i> Embed Oluşturucu (Opsiyonel)</h3>
+                 <div class="form-group">
+                    <label for="webhook-embed-title">Embed Başlık</label>
+                    <input type="text" id="webhook-embed-title" placeholder="Embed'in Başlığı">
+                </div>
+                <div class="form-group">
+                    <label for="webhook-embed-url">Embed Başlık URL'si</label>
+                    <input type="text" id="webhook-embed-url" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label for="webhook-embed-description">Embed Açıklaması</label>
+                    <textarea id="webhook-embed-description" placeholder="Embed'in ana metni..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="webhook-embed-color">Embed Rengi</label>
+                    <input type="color" id="webhook-embed-color" value="#4A90E2">
+                </div>
+                <div class="button-grid">
+                    <div class="form-group">
+                        <label for="webhook-embed-image">Image URL</label>
+                        <input type="text" id="webhook-embed-image" placeholder="Büyük resim URL'si">
+                    </div>
+                    <div class="form-group">
+                        <label for="webhook-embed-thumbnail">Thumbnail URL</label>
+                        <input type="text" id="webhook-embed-thumbnail" placeholder="Sağ üst köşe küçük resim">
+                    </div>
+                </div>
+                 <div class="button-grid">
+                    <div class="form-group">
+                        <label for="webhook-embed-footer-text">Footer (Alt Metin)</label>
+                        <input type="text" id="webhook-embed-footer-text" placeholder="Altbilgi metni">
+                    </div>
+                    <div class="form-group">
+                        <label for="webhook-embed-footer-icon">Footer İkon URL</label>
+                        <input type="text" id="webhook-embed-footer-icon" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <label>Zaman Damgası Ekle</label>
+                    <button id="webhook-embed-timestamp" class="toggle-switch" data-status="false"><i></i></button>
+                </div>
+                <hr>
+                <button id="send-webhook-btn" class="btn-success">Webhook Gönder</button>
             </div>
         </section>
     </template>
