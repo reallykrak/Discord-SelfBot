@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         profile: document.getElementById('profile-template')?.innerHTML,
         messaging: document.getElementById('messaging-template')?.innerHTML,
         tools: document.getElementById('tools-template')?.innerHTML,
+        webhook: document.getElementById('webhook-template')?.innerHTML, // YENİ
         raid: document.getElementById('raid-template')?.innerHTML,
         "server-copy": document.getElementById('server-copy-template')?.innerHTML,
         "troll-group": document.getElementById('troll-group-template')?.innerHTML,
@@ -133,6 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (page) {
             case 'home':
                 document.getElementById('toggle-afk')?.addEventListener('click', handleAfkToggle);
+                document.getElementById('kill-selfbot-btn')?.addEventListener('click', () => {
+                    if (confirm('Paneli tamamen durdurmak istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+                        socket.emit('panel:kill');
+                    }
+                });
                 break;
             case 'commands':
                 document.getElementById('command-search-input')?.addEventListener('input', handleCommandSearch);
@@ -164,6 +170,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('voice-stop-btn')?.addEventListener('click', () => handleVoiceControl('stop'));
                 // Diğer ses butonları (mute, deafen) için ID'ler HTML'de olmadığı için listener eklenmedi.
                 break;
+            case 'webhook': // YENİ
+                document.getElementById('send-webhook-btn')?.addEventListener('click', handleSendWebhook);
+                // Webhook timestamp toggle butonu için listener
+                document.getElementById('webhook-embed-timestamp')?.addEventListener('click', (e) => {
+                    const button = e.target.closest('.toggle-switch');
+                    if(button) {
+                        const isActive = button.dataset.status !== 'true';
+                        updateToggleButton(button, isActive);
+                    }
+                });
+                break;
             case 'raid':
                 document.getElementById('start-raid-btn')?.addEventListener('click', handleRaidStart);
                 break;
@@ -189,6 +206,25 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('command-list', (commands) => {
         allCommands = commands;
         renderCommands(allCommands);
+    });
+
+    // YENİ: Ana sayfa istatistiklerini güncelle
+    socket.on('system-stats', (data) => {
+        const serversEl = document.getElementById('dash-servers');
+        const pingEl = document.getElementById('dash-ping');
+        const uptimeEl = document.getElementById('dash-uptime');
+
+        if (serversEl) serversEl.textContent = data.servers || '...';
+        if (pingEl) pingEl.textContent = `${data.ping || '...'}ms`;
+        
+        if (uptimeEl) {
+            const s = data.uptime;
+            const d = Math.floor(s / (3600*24));
+            const h = Math.floor(s % (3600*24) / 3600);
+            const m = Math.floor(s % 3600 / 60);
+            
+            uptimeEl.textContent = `${d}g ${h}s ${m}d`;
+        }
     });
     
     socket.on('troll-group-status', ({ isActive }) => {
@@ -221,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function updateDynamicContent() {
+        // Eski ana sayfa elemanları
         const userTag = document.getElementById('user-tag');
         const userId = document.getElementById('user-id');
         const userAvatar = document.getElementById('user-avatar');
@@ -228,6 +265,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (botInfo.tag && userTag) userTag.textContent = botInfo.tag;
         if (botInfo.id && userId) userId.textContent = botInfo.id;
         if (botInfo.avatar && userAvatar) userAvatar.src = botInfo.avatar;
+        
+        // YENİ: Yeni ana sayfa dashboard elemanları
+        const dashUserTag = document.getElementById('dash-user-tag');
+        const dashServers = document.getElementById('dash-servers');
+        
+        if (botInfo.tag && dashUserTag) dashUserTag.textContent = botInfo.tag;
+        if (botInfo.servers && dashServers) dashServers.textContent = botInfo.servers;
     };
     
     function renderCommands(commandsToRender) {
@@ -336,13 +380,25 @@ document.addEventListener('DOMContentLoaded', () => {
         updateToggleButton(button, wantsToEnable);
     };
 
+    // GÜNCELLENDİ: Gelişmiş RPC verilerini topla
     function handleChangeStatus() {
         const data = {
             status: document.getElementById('status-type').value,
             activity: {
                 name: document.getElementById('activity-text').value,
                 type: document.getElementById('activity-type').value,
-                url: document.getElementById('streaming-url').value
+                url: document.getElementById('streaming-url').value,
+                // Yeni RPC alanları
+                details: document.getElementById('rpc-details').value,
+                state: document.getElementById('rpc-state').value,
+                largeImageKey: document.getElementById('rpc-large-image-key').value,
+                largeImageText: document.getElementById('rpc-large-image-text').value,
+                smallImageKey: document.getElementById('rpc-small-image-key').value,
+                smallImageText: document.getElementById('rpc-small-image-text').value,
+                button1_label: document.getElementById('rpc-btn1-label').value,
+                button1_url: document.getElementById('rpc-btn1-url').value,
+                button2_label: document.getElementById('rpc-btn2-label').value,
+                button2_url: document.getElementById('rpc-btn2-url').value,
             },
         };
         socket.emit('change-status', data);
@@ -404,6 +460,54 @@ document.addEventListener('DOMContentLoaded', () => {
             return showToast('Lütfen en az ilk 2 kişi ID\'sini girin.', 'error');
         }
         socket.emit('start-troll-group', { userIds });
+    }
+
+    // YENİ: Webhook gönderici
+    function handleSendWebhook() {
+        const url = document.getElementById('webhook-url').value;
+        const username = document.getElementById('webhook-username').value;
+        const avatarURL = document.getElementById('webhook-avatar').value;
+        const content = document.getElementById('webhook-content').value;
+
+        // Embed verilerini topla
+        const embed = {};
+        const title = document.getElementById('webhook-embed-title').value;
+        if (title) embed.title = title;
+        
+        const urlLink = document.getElementById('webhook-embed-url').value;
+        if (urlLink) embed.url = urlLink;
+        
+        const description = document.getElementById('webhook-embed-description').value;
+        if (description) embed.description = description;
+        
+        const color = document.getElementById('webhook-embed-color').value;
+        if (color) embed.color = color;
+        
+        const image = document.getElementById('webhook-embed-image').value;
+        if (image) embed.image = { url: image };
+        
+        const thumbnail = document.getElementById('webhook-embed-thumbnail').value;
+        if (thumbnail) embed.thumbnail = { url: thumbnail };
+        
+        const footerText = document.getElementById('webhook-embed-footer-text').value;
+        const footerIcon = document.getElementById('webhook-embed-footer-icon').value;
+        if (footerText) embed.footer = { text: footerText, icon_url: footerIcon || undefined };
+        
+        const timestamp = document.getElementById('webhook-embed-timestamp').dataset.status === 'true';
+        if (timestamp) embed.timestamp = new Date().toISOString();
+
+        const payload = {
+            url,
+            username,
+            avatarURL,
+            content,
+            embeds: (Object.keys(embed).length > 0) ? [embed] : []
+        };
+        
+        if (!url) return showToast('Webhook URL\'si zorunludur.', 'error');
+        if (!content && payload.embeds.length === 0) return showToast('Gönderilecek bir mesaj veya embed girmelisiniz.', 'error');
+        
+        socket.emit('send-webhook', payload);
     }
 
     // Başlangıç sayfası
