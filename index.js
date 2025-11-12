@@ -1,5 +1,5 @@
 require('./polyfill.js');
-const { Client, MessageEmbed } = require("discord.js-selfbot-v13");
+const { Client, MessageEmbed, WebhookClient } = require("discord.js-selfbot-v13"); // WebhookClient eklendi
 const { DiscordStreamClient } = require("discord-stream-client");
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, NoSubscriberBehavior, VoiceConnectionStatus } = require('@discordjs/voice');
 const fs = require('fs');
@@ -243,6 +243,7 @@ function loginPanelClient(token) {
             tag: panelClient.user.tag,
             avatar: panelClient.user.displayAvatarURL(),
             id: panelClient.user.id,
+            servers: panelClient.guilds.cache.size, // Sunucu sayısı eklendi
         });
         io.emit('status-update', { message: 'Panele başarıyla giriş yapıldı!', type: 'success' });
     });
@@ -472,8 +473,36 @@ function loginPanelClient(token) {
 io.on('connection', (socket) => {
     console.log('[Web Panel] Bir kullanıcı bağlandı.');
     panelClient.socket = socket; 
+    
+    // YENİ: Periyodik sistem istatistikleri (Ping, Uptime, Sunucular)
+    const statsInterval = setInterval(() => {
+        if (panelClient && panelClient.user) {
+            socket.emit('system-stats', {
+                servers: panelClient.guilds.cache.size,
+                ping: panelClient.ws.ping,
+                uptime: Math.floor(panelClient.uptime / 1000) // saniye olarak
+            });
+        }
+    }, 5000); // Her 5 saniyede bir
+
+    socket.on('disconnect', () => {
+        clearInterval(statsInterval);
+    });
+    
+    // YENİ: Paneli tamamen durdurma (Kill Selfbot)
+    socket.on('panel:kill', () => {
+        socket.emit('status-update', { message: 'Panel sunucusu durduruluyor...', type: 'error' });
+        console.log(`[Web Panel] Kullanıcı ${socket.id} tarafından durdurma komutu alındı. Çıkış yapılıyor...`);
+        setTimeout(() => process.exit(0), 1000); // 1s to send the message
+    });
+
     if (panelClient.user) {
-        socket.emit('bot-info', { tag: panelClient.user.tag, avatar: panelClient.user.displayAvatarURL(), id: panelClient.user.id });
+        socket.emit('bot-info', { 
+            tag: panelClient.user.tag, 
+            avatar: panelClient.user.displayAvatarURL(), 
+            id: panelClient.user.id,
+            servers: panelClient.guilds.cache.size // Sunucu sayısı eklendi
+        });
     }
     socket.emit('bot:status', { isRunning: !!botProcess });
 
@@ -570,23 +599,48 @@ io.on('connection', (socket) => {
         }
     });
     
+    // ========================================================================
+    // GÜNCELLENDİ: Gelişmiş RPC (Custom Presence)
+    // ========================================================================
     socket.on('change-status', async (data) => {
         try {
             const activityTypeMap = {
                 PLAYING: 0, STREAMING: 1, LISTENING: 2, WATCHING: 3, COMPETING: 5,
             };
             const selectedType = activityTypeMap[data.activity.type] ?? 0;
-            const presenceData = { status: data.status, activities: [], };
-            if (data.activity.name) {
-                const activity = {
-                    name: data.activity.name,
-                    type: selectedType,
-                };
-                if (selectedType === 1 && data.activity.url) {
-                    activity.url = data.activity.url;
-                }
-                presenceData.activities.push(activity);
+            
+            const activity = {
+                type: selectedType,
+            };
+
+            if (data.activity.name) activity.name = data.activity.name;
+            if (selectedType === 1 && data.activity.url) activity.url = data.activity.url;
+            if (data.activity.details) activity.details = data.activity.details;
+            if (data.activity.state) activity.state = data.activity.state;
+
+            // Assets (Resimler)
+            const assets = {};
+            if (data.activity.largeImageKey) assets.large_image = data.activity.largeImageKey;
+            if (data.activity.largeImageText) assets.large_text = data.activity.largeImageText;
+            if (data.activity.smallImageKey) assets.small_image = data.activity.smallImageKey;
+            if (data.activity.smallImageText) assets.small_text = data.activity.smallImageText;
+            if (Object.keys(assets).length > 0) activity.assets = assets;
+
+            // Buttons (Butonlar)
+            const buttons = [];
+            if (data.activity.button1_label && data.activity.button1_url) {
+                buttons.push({ label: data.activity.button1_label, url: data.activity.button1_url });
             }
+            if (data.activity.button2_label && data.activity.button2_url) {
+                buttons.push({ label: data.activity.button2_label, url: data.activity.button2_url });
+            }
+            if (buttons.length > 0) activity.buttons = buttons;
+            
+            const presenceData = {
+                status: data.status,
+                activities: activity.name ? [activity] : [],
+            };
+
             await panelClient.user.setPresence(presenceData);
             socket.emit('status-update', { message: 'Durum başarıyla değiştirildi.', type: 'success' });
         } catch (error) {
@@ -594,6 +648,10 @@ io.on('connection', (socket) => {
             socket.emit('status-update', { message: 'Durum değiştirilemedi: ' + error.message, type: 'error' });
         }
     });
+    // ========================================================================
+    // GÜNCELLEME BİTİŞİ
+    // ========================================================================
+
 
     socket.on('server-copy', async (data) => {
         const { sourceGuildId, newServerName } = data;
@@ -604,9 +662,6 @@ io.on('connection', (socket) => {
         cloneServer(panelClient, sourceGuildId, newServerName, socket);
     });
 
-    // ========================================================================
-    // HATA ÇÖZÜMÜ: Troll grup oluşturma mantığı yeniden yazıldı. (10.11.2025)
-    // ========================================================================
     socket.on('start-troll-group', async (data) => {
         if (trollGroupChannel) {
             return socket.emit('status-update', { message: 'Zaten aktif bir troll grup var.', type: 'warning' });
@@ -629,8 +684,6 @@ io.on('connection', (socket) => {
 
             socket.emit('status-update', { message: 'Grup oluşturuluyor...', type: 'info' });
             
-            // Hata Çözümü: createDM() + addMember() yerine createGroupDM() kullanarak tüm üyelerle grup oluştur.
-            // Bu, 'dmChannel.addMember is not a function' hatasını çözer.
             const groupDM = await panelClient.users.createGroupDM(validUserIds);
                 
             if (!groupDM) {
@@ -655,10 +708,6 @@ io.on('connection', (socket) => {
             socket.emit('status-update', { message: `Grup oluşturulamadı: ${error.message}`, type: 'error' });
         }
     });
-    // ========================================================================
-    // HATA ÇÖZÜMÜ BİTİŞİ
-    // ========================================================================
-
 
     socket.on('stop-troll-group', () => {
         if (trollGroupListener) {
@@ -682,6 +731,50 @@ io.on('connection', (socket) => {
     socket.on('clean-dm', ({ userId }) => {
         cleanDmMessages(panelClient, userId, socket);
     });
+
+    // ========================================================================
+    // YENİ: Webhook Gönderici
+    // ========================================================================
+    socket.on('send-webhook', async (data) => {
+        try {
+            const { url, ...payload } = data;
+            if (!url) {
+                return socket.emit('status-update', { message: 'Webhook URL girilmedi.', type: 'error' });
+            }
+            
+            // Webhook URL'den ID ve Token'ı ayıkla
+            const matches = url.match(/api\/webhooks\/(\d+)\/([\w-]+)/);
+            if (!matches) {
+                return socket.emit('status-update', { message: 'Geçersiz Webhook URL formatı.', type: 'error' });
+            }
+            const [ , id, token ] = matches;
+            
+            const webhookClient = new WebhookClient({ id, token });
+
+            // Gelen payload'u hazırla (username, avatar_url, content, embeds)
+            const sendOptions = {
+                username: payload.username || undefined,
+                avatarURL: payload.avatarURL || undefined,
+                content: payload.content || undefined,
+                embeds: payload.embeds && payload.embeds.length > 0 ? payload.embeds : undefined,
+            };
+
+            // Boşsa (sadece embed atılıyorsa) content'i null yap
+            if (!sendOptions.content && !sendOptions.embeds) {
+                 return socket.emit('status-update', { message: 'Gönderilecek içerik veya embed yok.', type: 'error' });
+            }
+
+            await webhookClient.send(sendOptions);
+            socket.emit('status-update', { message: 'Webhook başarıyla gönderildi!', type: 'success' });
+
+        } catch (error) {
+            console.error("Webhook gönderme hatası:", error);
+            socket.emit('status-update', { message: 'Webhook gönderilemedi: ' + error.message, type: 'error' });
+        }
+    });
+    // ========================================================================
+    // YENİ WEBHOOK BİTİŞİ
+    // ========================================================================
 
     socket.on('get-streamer-bots', () => updateStreamerStatus());
     socket.on('start-streamer', ({ token, type }) => {
